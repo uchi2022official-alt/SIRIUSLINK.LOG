@@ -1,0 +1,1188 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  LayoutDashboard, 
+  BarChart3, 
+  Trophy, 
+  User, 
+  FileEdit, 
+  AlertCircle, 
+  History, 
+  Users, 
+  LogOut, 
+  Menu, 
+  X,
+  ChevronRight,
+  TrendingUp,
+  DollarSign,
+  CheckCircle2,
+  Clock
+} from 'lucide-react';
+
+// --- 初期データ & 定数 ---
+const ROLES = { ADMIN: '管理者', STAFF: 'スタッフ' };
+const DEPARTMENTS = ['SIRIUSLINK', '西河はるやチーム'];
+const TEAMS = ['山路優チーム', '磯和美優チーム', '西河はるやチーム'];
+const POSITIONS = ['アポインター', '自力プレーヤー', 'クローザー'];
+
+const INITIAL_STAFF = [
+  { id: '1', name: '管理者 太郎', kana: 'カンリシャ タロウ', gender: '男性', dob: '1990-05-15', dept: 'SIRIUSLINK', team: '山路優チーム', position: 'クローザー', role: ROLES.ADMIN, bio: 'よろしくお願いします。', image: null },
+  { id: '2', name: '営業 花子', kana: 'エイギョウ ハナコ', gender: '女性', dob: '1995-10-20', dept: '西河はるやチーム', team: '西河はるやチーム', position: 'アポインター', role: ROLES.STAFF, bio: '頑張ります！', image: null },
+  { id: '3', name: '佐藤 次郎', kana: 'サトウ ジロウ', gender: '男性', dob: '1992-03-10', dept: 'SIRIUSLINK', team: '磯和美優チーム', position: '自力プレーヤー', role: ROLES.STAFF, bio: '成約にこだわります。', image: null },
+];
+
+const INITIAL_DAILY_REPORTS = [
+  { id: 'r1', staffId: '2', date: '2023-11-01', type: '通常対応', pingpong: 100, response: 20, inkick: 10, doorkick: 5, outOfScope: 2, appu: 5, appo: 2 },
+  { id: 'r2', staffId: '3', date: '2023-11-01', type: '平日対応', pingpong: 50, response: 10, inkick: 5, doorkick: 2, outOfScope: 1, appu: 3, appo: 1 },
+];
+
+const INITIAL_CLOSING_REPORTS = [
+  { id: 'c1', date: '2023-11-02', appointerId: '2', closerId: '1', customer: 'タナカ', result: '完工', sales: 150, adminCommentAppo: '素晴らしいアポイントでした。この調子で質を維持していきましょう。', adminCommentCloser: '成約おめでとう。' },
+  { id: 'c2', date: '2023-11-03', appointerId: '3', closerId: '1', customer: 'スズキ', result: '契約', sales: 200, adminCommentAppo: '次は完工まで持っていけるようフォローしましょう。', adminCommentCloser: '惜しかったです。' },
+];
+
+// --- ユーティリティ関数 ---
+const calculateAge = (dob) => {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+};
+
+const formatPercent = (num, den) => {
+  if (!den) return 0;
+  return Math.round((num / den) * 100);
+};
+
+const getQuarter = (dateStr) => {
+  const month = new Date(dateStr).getMonth() + 1;
+  if (month >= 1 && month <= 3) return '第1クール';
+  if (month >= 4 && month <= 6) return '第2クール';
+  if (month >= 7 && month <= 9) return '第3クール';
+  return '第4クール';
+};
+
+// --- メインコンポーネント ---
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState('タイムライン');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // 共有ステート
+  const [staffList, setStaffList] = useState(INITIAL_STAFF);
+  const [dailyReports, setDailyReports] = useState(INITIAL_DAILY_REPORTS);
+  const [closingReports, setClosingReports] = useState(INITIAL_CLOSING_REPORTS);
+
+  // ログイン処理
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    // 簡易ログイン: admin@なら管理者、それ以外はスタッフ
+    const foundUser = email.includes('admin') ? staffList[0] : staffList[1];
+    setUser(foundUser);
+    setIsLoggedIn(true);
+  };
+
+  if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />;
+
+  return (
+    <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
+      {/* サイドバー */}
+      <aside className={`bg-slate-900 text-white transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-20'} flex flex-col shrink-0`}>
+        <div className="p-4 flex items-center justify-between border-b border-slate-700 h-16">
+          <h1 className={`font-bold text-xl text-blue-400 overflow-hidden whitespace-nowrap ${!isSidebarOpen && 'hidden'}`}>SIRIUSLINK.LOG</h1>
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 hover:bg-slate-800 rounded">
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+        
+        <nav className="flex-1 overflow-y-auto mt-4">
+          <SidebarItem icon={<LayoutDashboard size={20} />} label="タイムライン" active={currentPage === 'タイムライン'} onClick={() => setCurrentPage('タイムライン')} expanded={isSidebarOpen} />
+          <SidebarItem icon={<BarChart3 size={20} />} label="全体営業成績" active={currentPage === '全体営業成績'} onClick={() => setCurrentPage('全体営業成績')} expanded={isSidebarOpen} />
+          <SidebarItem icon={<Trophy size={20} />} label="営業成績ランキング" active={currentPage === '営業成績ランキング'} onClick={() => setCurrentPage('営業成績ランキング')} expanded={isSidebarOpen} />
+          <SidebarItem icon={<User size={20} />} label="個人プロフィール" active={currentPage === '個人プロフィール'} onClick={() => setCurrentPage('個人プロフィール')} expanded={isSidebarOpen} />
+          <SidebarItem icon={<FileEdit size={20} />} label="日報・商談報告" active={currentPage === '日報・商談報告'} onClick={() => setCurrentPage('日報・商談報告')} expanded={isSidebarOpen} />
+          <SidebarItem icon={<AlertCircle size={20} />} label="システムエラー報告" active={currentPage === 'システムエラー報告'} onClick={() => setCurrentPage('システムエラー報告')} expanded={isSidebarOpen} />
+          
+          {user.role === ROLES.ADMIN && (
+            <>
+              <div className={`px-4 py-2 text-xs font-semibold text-slate-500 uppercase ${!isSidebarOpen && 'hidden'}`}>管理者メニュー</div>
+              <SidebarItem icon={<History size={20} />} label="履歴" active={currentPage === '履歴'} onClick={() => setCurrentPage('履歴')} expanded={isSidebarOpen} />
+              <SidebarItem icon={<Users size={20} />} label="スタッフ名簿" active={currentPage === 'スタッフ名簿'} onClick={() => setCurrentPage('スタッフ名簿')} expanded={isSidebarOpen} />
+            </>
+          )}
+        </nav>
+
+        <div className="p-4 border-t border-slate-700">
+          <button 
+            onClick={() => setIsLoggedIn(false)}
+            className="flex items-center gap-3 w-full p-2 hover:bg-red-500/10 text-red-400 transition-colors rounded"
+          >
+            <LogOut size={20} />
+            {isSidebarOpen && <span className="font-medium">ログアウト</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* メインコンテンツ */}
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
+          <div className="md:hidden flex items-center">
+             <h1 className="font-bold text-lg text-blue-900">SIRIUSLINK.LOG</h1>
+          </div>
+          <div className="hidden md:block">
+             <span className="text-slate-500 text-sm">現在のページ：</span>
+             <span className="font-semibold text-slate-800 ml-1">{currentPage}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-slate-600">{user.name}（{user.role}）</span>
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+              <User size={18} />
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <PageRouter 
+            page={currentPage} 
+            user={user} 
+            staffList={staffList} 
+            dailyReports={dailyReports} 
+            closingReports={closingReports}
+            setStaffList={setStaffList}
+            setDailyReports={setDailyReports}
+            setClosingReports={setClosingReports}
+            setCurrentPage={setCurrentPage}
+            setTargetUserId={(id) => {
+              // プロフィール移動用
+              setUser(staffList.find(s => s.id === id));
+              setCurrentPage('個人プロフィール');
+            }}
+          />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// --- コンポーネント群 ---
+
+function SidebarItem({ icon, label, active, onClick, expanded }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex items-center gap-3 w-full px-4 py-3 transition-all duration-200 ${
+        active 
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
+          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+      }`}
+    >
+      <div className="shrink-0">{icon}</div>
+      {expanded && <span className="font-medium text-sm truncate">{label}</span>}
+    </button>
+  );
+}
+
+function LoginPage({ onLogin }) {
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-blue-900 mb-2">SIRIUSLINK.LOG</h1>
+          <p className="text-slate-500">営業管理システム ログイン</p>
+        </div>
+        <form onSubmit={onLogin} className="space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">メールアドレス</label>
+            <input 
+              name="email" 
+              type="email" 
+              required 
+              defaultValue="admin@siriuslink.com"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              placeholder="name@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">パスワード</label>
+            <input 
+              name="password" 
+              type="password" 
+              required 
+              defaultValue="password"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+          <button 
+            type="submit"
+            className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+          >
+            ログイン
+          </button>
+        </form>
+        <div className="mt-6 text-center text-xs text-slate-400">
+          <p>※管理者用: admin@ / スタッフ用: staff@ でシミュレーション可</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageRouter({ page, ...props }) {
+  switch (page) {
+    case 'タイムライン': return <TimelinePage {...props} />;
+    case '全体営業成績': return <OverallSalesPage {...props} />;
+    case '営業成績ランキング': return <RankingPage {...props} />;
+    case '個人プロフィール': return <ProfilePage {...props} />;
+    case '日報・商談報告': return <ReportingPage {...props} />;
+    case 'システムエラー報告': return <ErrorReportPage {...props} />;
+    case '履歴': return <HistoryPage {...props} />;
+    case 'スタッフ名簿': return <StaffManagementPage {...props} />;
+    default: return <div>Page Not Found</div>;
+  }
+}
+
+// --- 各ページの実装 ---
+
+function TimelinePage({ closingReports, staffList }) {
+  const contracts = closingReports
+    .filter(r => r.result === '完工' || r.result === '契約')
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10);
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-bold flex items-center gap-2">
+        <Clock className="text-blue-600" /> 最新タイムライン
+      </h2>
+      <div className="space-y-4">
+        {contracts.map(contract => {
+          const appointer = staffList.find(s => s.id === contract.appointerId);
+          const closer = staffList.find(s => s.id === contract.closerId);
+          return (
+            <div key={contract.id} className="bg-white rounded-xl shadow-sm border-l-4 border-blue-600 p-6">
+              <div className="flex justify-between items-start mb-4">
+                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                  ご契約おめでとうございます！
+                </span>
+                <span className="text-slate-400 text-sm font-medium">{contract.date}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-sm">
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-slate-400 text-xs mb-1">アポインター</p>
+                  <p className="font-bold">{appointer?.name}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-slate-400 text-xs mb-1">クローザー</p>
+                  <p className="font-bold">{closer?.name}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-slate-400 text-xs mb-1">顧客名</p>
+                  <p className="font-bold">{contract.customer} 様案件</p>
+                </div>
+              </div>
+              <div className="space-y-3 border-t border-slate-100 pt-4">
+                <div className="text-sm">
+                  <span className="font-bold text-blue-600">上長から{appointer?.name}さんへのコメント：</span>
+                  <p className="mt-1 text-slate-600 italic">"{contract.adminCommentAppo}"</p>
+                </div>
+                <div className="text-sm">
+                  <span className="font-bold text-blue-600">上長から{closer?.name}さんへのコメント：</span>
+                  <p className="mt-1 text-slate-600 italic">"{contract.adminCommentCloser}"</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {contracts.length === 0 && (
+          <div className="text-center py-20 text-slate-400 bg-white rounded-xl border border-dashed">
+            契約情報はまだありません。
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OverallSalesPage({ dailyReports, closingReports, staffList, setTargetUserId }) {
+  const [period, setPeriod] = useState('2023-11');
+  const [periodType, setPeriodType] = useState('monthly'); // 'monthly' or 'quarterly'
+
+  const filteredReports = useMemo(() => {
+    return dailyReports.filter(r => {
+      if (periodType === 'monthly') return r.date.startsWith(period);
+      return getQuarter(r.date) === period;
+    });
+  }, [dailyReports, period, periodType]);
+
+  const filteredClosings = useMemo(() => {
+    return closingReports.filter(r => {
+      if (periodType === 'monthly') return r.date.startsWith(period);
+      return getQuarter(r.date) === period;
+    });
+  }, [closingReports, period, periodType]);
+
+  const stats = useMemo(() => {
+    const s = {
+      sales: 0, completion: 0, pingpong: 0, response: 0, inkick: 0, doorkick: 0, 
+      outOfScope: 0, appu: 0, appo: 0, shodan: 0, keiyaku: 0, attendance: 0,
+      appoKeiyaku: 0, cloKeiyaku: 0, appoKanko: 0, cloKanko: 0
+    };
+    
+    filteredReports.forEach(r => {
+      s.attendance += r.type === '平日対応' ? 0.3 : 1;
+      s.pingpong += r.pingpong;
+      s.response += r.response;
+      s.inkick += r.inkick;
+      s.doorkick += r.doorkick;
+      s.outOfScope += r.outOfScope;
+      s.appu += r.appu;
+      s.appo += r.appo;
+    });
+
+    filteredClosings.forEach(c => {
+      s.shodan += 1;
+      if (c.result === '完工') s.completion += 1;
+      if (c.result === '契約' || c.result === '完工') s.keiyaku += 1;
+      s.sales += c.sales || 0;
+    });
+
+    return s;
+  }, [filteredReports, filteredClosings]);
+
+  const staffStats = useMemo(() => {
+    return staffList.map(staff => {
+      const personalReports = filteredReports.filter(r => r.staffId === staff.id);
+      const personalAppoClosings = filteredClosings.filter(c => c.appointerId === staff.id);
+      const personalCloClosings = filteredClosings.filter(c => c.closerId === staff.id);
+      
+      return {
+        ...staff,
+        attendance: personalReports.reduce((sum, r) => sum + (r.type === '平日対応' ? 0.3 : 1), 0),
+        pingpong: personalReports.reduce((sum, r) => sum + r.pingpong, 0),
+        appo: personalReports.reduce((sum, r) => sum + r.appo, 0),
+        shodan: personalAppoClosings.length,
+        appoKanko: personalAppoClosings.filter(c => c.result === '完工').length,
+        cloKanko: personalCloClosings.filter(c => c.result === '完工').length,
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  }, [staffList, filteredReports, filteredClosings]);
+
+  return (
+    <div className="space-y-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">
+            {period} {periodType === 'monthly' ? '月間' : ''} 全体営業成績
+          </h2>
+          <p className="text-slate-400 text-sm">各スタッフの活動実績と集計データ</p>
+        </div>
+        <div className="flex gap-2">
+          <select 
+            className="bg-slate-100 border-none rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => setPeriodType(e.target.value)}
+          >
+            <option value="monthly">月別選択</option>
+            <option value="quarterly">クール別選択</option>
+          </select>
+          {periodType === 'monthly' ? (
+            <input 
+              type="month" 
+              value={period} 
+              onChange={(e) => setPeriod(e.target.value)}
+              className="bg-slate-100 border-none rounded-lg px-3 py-2 text-sm"
+            />
+          ) : (
+            <select 
+              value={period} 
+              onChange={(e) => setPeriod(e.target.value)}
+              className="bg-slate-100 border-none rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="第1クール">第1クール (1-3月)</option>
+              <option value="第2クール">第2クール (4-6月)</option>
+              <option value="第3クール">第3クール (7-9月)</option>
+              <option value="第4クール">第4クール (10-12月)</option>
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* メイン指標 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-blue-900 text-white p-8 rounded-2xl shadow-lg flex flex-col justify-center items-center">
+          <p className="text-blue-200 uppercase text-xs font-bold tracking-widest mb-2">総売上</p>
+          <p className="text-5xl font-black mb-1">{stats.sales.toLocaleString()}<span className="text-xl ml-1">万円</span></p>
+        </div>
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center items-center">
+          <p className="text-slate-400 uppercase text-xs font-bold tracking-widest mb-2">総完工数</p>
+          <p className="text-5xl font-black text-slate-800">{stats.completion}<span className="text-xl ml-1">件</span></p>
+        </div>
+      </div>
+
+      {/* サブ指標 */}
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+        {[
+          { label: '総出勤数', val: stats.attendance.toFixed(1), unit: '日' },
+          { label: 'ピンポン', val: stats.pingpong, unit: '回' },
+          { label: '対応数', val: stats.response, unit: '件' },
+          { label: 'アポ数', val: stats.appo, unit: '件' },
+          { label: '商談数', val: stats.shodan, unit: '件' },
+          { label: '契約数', val: stats.keiyaku, unit: '件' },
+          { label: '完工数', val: stats.completion, unit: '件' },
+        ].map((item, idx) => (
+          <div key={idx} className="bg-white p-4 rounded-xl border border-slate-100 text-center">
+            <p className="text-[10px] text-slate-400 font-bold mb-1">{item.label}</p>
+            <p className="text-xl font-bold">{item.val}<span className="text-[10px] ml-0.5">{item.unit}</span></p>
+          </div>
+        ))}
+      </div>
+
+      {/* 効率指標 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-blue-50 border-2 border-blue-100 p-6 rounded-2xl text-center">
+          <p className="text-blue-800 font-bold text-sm mb-2">ピンポン完工率</p>
+          <p className="text-4xl font-black text-blue-600">{formatPercent(stats.completion, stats.pingpong)}%</p>
+        </div>
+        <div className="bg-blue-50 border-2 border-blue-100 p-6 rounded-2xl text-center">
+          <p className="text-blue-800 font-bold text-sm mb-2">1日平均ピンポン数</p>
+          <p className="text-4xl font-black text-blue-600">
+            {stats.attendance ? Math.round(stats.pingpong / stats.attendance) : 0}件
+          </p>
+        </div>
+      </div>
+
+      {/* 中間率 */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        {[
+          { label: '対応率', val: formatPercent(stats.response, stats.pingpong) },
+          { label: 'インキック率', val: formatPercent(stats.inkick, stats.response) },
+          { label: '対応アポ率', val: formatPercent(stats.appo, stats.response) },
+          { label: 'アプアポ率', val: formatPercent(stats.appo, stats.appu) },
+          { label: 'アポ商談率', val: formatPercent(stats.shodan, stats.appo) },
+          { label: '商談完工率', val: formatPercent(stats.completion, stats.shodan) },
+        ].map((item, idx) => (
+          <div key={idx} className="bg-white p-3 rounded-xl border border-slate-100 text-center">
+            <p className="text-[10px] text-slate-400 font-bold mb-1">{item.label}</p>
+            <p className="text-lg font-bold">{item.val}%</p>
+          </div>
+        ))}
+      </div>
+
+      {/* キャンセル率 */}
+      <div className="bg-red-50 border border-red-100 p-6 rounded-2xl flex flex-col items-center">
+        <p className="text-red-800 font-bold text-sm mb-2">キャンセル率</p>
+        <p className="text-4xl font-black text-red-600">
+          {formatPercent(stats.keiyaku - stats.completion, stats.keiyaku)}%
+        </p>
+        <p className="text-[10px] text-red-400 mt-2 font-medium">※目標値：25%以下</p>
+      </div>
+
+      {/* スタッフ別一覧 */}
+      <div className="space-y-4">
+        <h3 className="font-bold text-lg text-slate-800 border-b pb-2 flex items-center gap-2">
+          <Users size={18} className="text-blue-600" /> 営業スタッフ別成績表一覧
+        </h3>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 font-bold text-slate-600">氏名</th>
+                <th className="px-2 py-3 text-center">出勤</th>
+                <th className="px-2 py-3 text-center">ピンポン</th>
+                <th className="px-2 py-3 text-center">対応</th>
+                <th className="px-2 py-3 text-center">アポ</th>
+                <th className="px-2 py-3 text-center">商談</th>
+                <th className="px-2 py-3 text-center">アポ完工</th>
+                <th className="px-2 py-3 text-center">クロ完工</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-slate-100">
+              {staffStats.map(staff => (
+                <tr 
+                  key={staff.id} 
+                  className="hover:bg-slate-50 cursor-pointer transition-colors"
+                  onClick={() => setTargetUserId(staff.id)}
+                >
+                  <td className="px-4 py-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-slate-500 font-bold">
+                      {staff.name[0]}
+                    </div>
+                    <span className="font-bold">{staff.name}</span>
+                  </td>
+                  <td className="px-2 py-3 text-center">{staff.attendance.toFixed(1)}</td>
+                  <td className="px-2 py-3 text-center">{staff.pingpong}</td>
+                  <td className="px-2 py-3 text-center font-medium">---</td>
+                  <td className="px-2 py-3 text-center">{staff.appo}</td>
+                  <td className="px-2 py-3 text-center">{staff.shodan}</td>
+                  <td className="px-2 py-3 text-center text-blue-600 font-bold">{staff.appoKanko}</td>
+                  <td className="px-2 py-3 text-center text-blue-600 font-bold">{staff.cloKanko}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RankingPage({ dailyReports, closingReports, staffList, setTargetUserId }) {
+  const [period, setPeriod] = useState('2023-11');
+  const [periodType, setPeriodType] = useState('monthly');
+  const [activeTab, setActiveTab] = useState('アポイント');
+  const [rankingType, setRankingType] = useState('完工数');
+
+  const filteredReports = useMemo(() => {
+    return dailyReports.filter(r => periodType === 'monthly' ? r.date.startsWith(period) : getQuarter(r.date) === period);
+  }, [dailyReports, period, periodType]);
+
+  const filteredClosings = useMemo(() => {
+    return closingReports.filter(c => periodType === 'monthly' ? c.date.startsWith(period) : getQuarter(c.date) === period);
+  }, [closingReports, period, periodType]);
+
+  const rankingData = useMemo(() => {
+    return staffList.map(staff => {
+      const personalReports = filteredReports.filter(r => r.staffId === staff.id);
+      const personalAppoClosings = filteredClosings.filter(c => c.appointerId === staff.id);
+      const personalCloClosings = filteredClosings.filter(c => c.closerId === staff.id);
+
+      const stats = {
+        appoKanko: personalAppoClosings.filter(c => c.result === '完工').length,
+        appoShodan: personalAppoClosings.length,
+        appoKensu: personalReports.reduce((sum, r) => sum + r.appo, 0),
+        pingpong: personalReports.reduce((sum, r) => sum + r.pingpong, 0),
+        cloKanko: personalCloClosings.filter(c => c.result === '完工').length,
+        cloKeiyaku: personalCloClosings.filter(c => c.result === '契約' || c.result === '完工').length,
+        cloShodan: personalCloClosings.length,
+      };
+
+      let value = 0;
+      let displayValue = '';
+
+      if (activeTab === 'アポイント') {
+        if (rankingType === '完工数') { value = stats.appoKanko; displayValue = `${value}件`; }
+        if (rankingType === '商談数') { value = stats.appoShodan; displayValue = `${value}件`; }
+        if (rankingType === 'アポ数') { value = stats.appoKensu; displayValue = `${value}件`; }
+        if (rankingType === 'ピンポン数') { value = stats.pingpong; displayValue = `${value}回`; }
+        if (rankingType === 'ピンポン完工率') { 
+          value = formatPercent(stats.appoKanko, stats.pingpong); 
+          displayValue = `${value}%`; 
+        }
+      } else {
+        if (rankingType === '完工数') { value = stats.cloKanko; displayValue = `${value}件`; }
+        if (rankingType === '商談完工率') { 
+          value = formatPercent(stats.cloKanko, stats.cloShodan); 
+          displayValue = `${value}%`; 
+        }
+        if (rankingType === 'キャンセル率') { 
+          // キャンセル率は「低い順」にするため、ここでは逆数またはソート時に考慮
+          value = formatPercent(stats.cloKeiyaku - stats.cloKanko, stats.cloKeiyaku);
+          displayValue = `${value}%`;
+        }
+      }
+
+      return { ...staff, value, displayValue };
+    }).sort((a, b) => rankingType === 'キャンセル率' ? a.value - b.value : b.value - a.value);
+  }, [staffList, filteredReports, filteredClosings, activeTab, rankingType]);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <h2 className="text-xl font-bold text-slate-800">
+            {period} {activeTab} {rankingType}ランキング
+          </h2>
+          <div className="flex gap-2">
+            <select className="bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs" onChange={(e) => setPeriodType(e.target.value)}>
+              <option value="monthly">月別</option>
+              <option value="quarterly">クール別</option>
+            </select>
+            <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs" />
+          </div>
+        </div>
+
+        <div className="flex border-b border-slate-200 mb-6 overflow-x-auto">
+          {['アポイント', 'クロージング'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => { setActiveTab(tab); setRankingType('完工数'); }}
+              className={`px-6 py-3 font-bold text-sm transition-all whitespace-nowrap ${
+                activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2 flex-wrap mb-8">
+          {(activeTab === 'アポイント' 
+            ? ['完工数', '商談数', 'アポ数', 'ピンポン数', 'ピンポン完工率']
+            : ['完工数', '商談完工率', 'キャンセル率']
+          ).map(type => (
+            <button
+              key={type}
+              onClick={() => setRankingType(type)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                rankingType === type ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          {rankingData.map((item, index) => (
+            <div 
+              key={item.id} 
+              className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setTargetUserId(item.id)}
+            >
+              <div className="flex items-center gap-4">
+                <span className={`w-8 h-8 flex items-center justify-center font-black rounded-full ${
+                  index === 0 ? 'bg-yellow-400 text-white' : 
+                  index === 1 ? 'bg-slate-300 text-white' : 
+                  index === 2 ? 'bg-orange-400 text-white' : 'text-slate-400'
+                }`}>
+                  {index + 1}
+                </span>
+                <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-500">
+                  {item.name[0]}
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">{item.name}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">{item.position} / {item.team}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-blue-600">{item.displayValue}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfilePage({ user, staffList, dailyReports, closingReports, setStaffList }) {
+  const [editBio, setEditBio] = useState(user.bio);
+  const [periodStart, setPeriodStart] = useState('2023-11-01');
+  const [periodEnd, setPeriodEnd] = useState('2023-11-30');
+
+  const personalReports = dailyReports.filter(r => r.staffId === user.id && r.date >= periodStart && r.date <= periodEnd);
+  const personalAppoClosings = closingReports.filter(c => c.appointerId === user.id && c.date >= periodStart && c.date <= periodEnd);
+  const personalCloClosings = closingReports.filter(c => c.closerId === user.id && c.date >= periodStart && c.date <= periodEnd);
+
+  const stats = useMemo(() => {
+    const s = {
+      pingpong: personalReports.reduce((sum, r) => sum + r.pingpong, 0),
+      response: personalReports.reduce((sum, r) => sum + r.response, 0),
+      inkick: personalReports.reduce((sum, r) => sum + r.inkick, 0),
+      doorkick: personalReports.reduce((sum, r) => sum + r.doorkick, 0),
+      outOfScope: personalReports.reduce((sum, r) => sum + r.outOfScope, 0),
+      appu: personalReports.reduce((sum, r) => sum + r.appu, 0),
+      appo: personalReports.reduce((sum, r) => sum + r.appo, 0),
+      shodan: personalAppoClosings.length,
+      appoKanko: personalAppoClosings.filter(c => c.result === '完工').length,
+      attendance: personalReports.reduce((sum, r) => sum + (r.type === '平日対応' ? 0.3 : 1), 0),
+      cloShodan: personalCloClosings.length,
+      cloKeiyaku: personalCloClosings.filter(c => c.result === '契約' || c.result === '完工').length,
+      cloKanko: personalCloClosings.filter(c => c.result === '完工').length,
+    };
+    return s;
+  }, [personalReports, personalAppoClosings, personalCloClosings]);
+
+  const handleUpdateSelf = () => {
+    const updated = staffList.map(s => s.id === user.id ? { ...s, bio: editBio.slice(0, 15) } : s);
+    setStaffList(updated);
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+      {/* 基本プロフィール */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-slate-900 h-24"></div>
+        <div className="px-8 pb-8">
+          <div className="flex flex-col md:flex-row gap-6 -mt-10 items-end">
+            <div className="w-32 h-32 rounded-2xl bg-white p-1 shadow-lg overflow-hidden shrink-0">
+               <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
+                 <User size={64} />
+               </div>
+            </div>
+            <div className="flex-1 space-y-1">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                {user.name} <span className="text-sm font-normal text-slate-400">({user.kana})</span>
+              </h2>
+              <p className="text-blue-600 font-bold">{user.position} | {user.team}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <input 
+                value={editBio} 
+                onChange={(e) => setEditBio(e.target.value)} 
+                maxLength={15}
+                className="text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                placeholder="一言(15文字まで)"
+              />
+              <button onClick={handleUpdateSelf} className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">一言を更新</button>
+            </div>
+          </div>
+          
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-slate-100">
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase mb-1">性別</p>
+              <p className="font-semibold">{user.gender}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase mb-1">年齢</p>
+              <p className="font-semibold">{calculateAge(user.dob)}歳</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase mb-1">所属</p>
+              <p className="font-semibold">{user.dept}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase mb-1">役職</p>
+              <p className="font-semibold">{user.role}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 営業成績表示 */}
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h3 className="text-xl font-bold text-slate-800">{user.name} さんの営業成績</h3>
+          <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-slate-200">
+            <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="text-xs border-none bg-transparent" />
+            <span className="text-slate-400">〜</span>
+            <input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className="text-xs border-none bg-transparent" />
+          </div>
+        </div>
+
+        {/* アポ成績 */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+          <h4 className="font-black text-slate-800 border-b pb-3">アポ成績</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="bg-blue-50 p-6 rounded-xl text-center">
+                <p className="text-xs text-blue-700 font-bold mb-1">ピンポン完工率</p>
+                <p className="text-3xl font-black text-blue-900">{formatPercent(stats.appoKanko, stats.pingpong)}%</p>
+             </div>
+             <div className="bg-blue-50 p-6 rounded-xl text-center">
+                <p className="text-xs text-blue-700 font-bold mb-1">1日平均ピンポン</p>
+                <p className="text-3xl font-black text-blue-900">{stats.attendance ? Math.round(stats.pingpong / stats.attendance) : 0}件</p>
+             </div>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+             {[
+               { l: '出勤', v: stats.attendance.toFixed(1) },
+               { l: 'ピンポン', v: stats.pingpong },
+               { l: '対応', v: stats.response },
+               { l: 'アポ', v: stats.appo },
+               { l: '商談', v: stats.shodan },
+               { l: 'アポ完工', v: stats.appoKanko },
+             ].map((item, idx) => (
+               <div key={idx} className="bg-slate-50 p-3 rounded-lg text-center">
+                 <p className="text-[10px] text-slate-400 font-bold mb-1">{item.l}</p>
+                 <p className="text-sm font-bold">{item.v}</p>
+               </div>
+             ))}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+               { l: '対応率', v: formatPercent(stats.response, stats.pingpong) },
+               { l: '対応アポ率', v: formatPercent(stats.appo, stats.response) },
+               { l: 'アプアポ率', v: formatPercent(stats.appo, stats.appu) },
+               { l: 'アポ商談率', v: formatPercent(stats.shodan, stats.appo) },
+               { l: '商談完工率', v: formatPercent(stats.appoKanko, stats.shodan) },
+            ].map((item, idx) => (
+              <div key={idx} className="bg-slate-50 p-3 rounded-lg text-center border-t-2 border-slate-200">
+                <p className="text-[10px] text-slate-400 font-bold mb-1">{item.l}</p>
+                <p className="text-sm font-bold">{item.v}%</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* クロ成績 */}
+        <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-lg space-y-6">
+          <h4 className="font-black text-blue-400 border-b border-slate-700 pb-3 uppercase tracking-wider">クロ成績</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-400 font-bold">完工数</p>
+              <p className="text-4xl font-black">{stats.cloKanko}<span className="text-sm ml-1">件</span></p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-400 font-bold">商談完工率</p>
+              <p className="text-4xl font-black text-blue-400">{formatPercent(stats.cloKanko, stats.cloShodan)}%</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-400 font-bold">キャンセル率</p>
+              <p className="text-4xl font-black text-red-400">{formatPercent(stats.cloKeiyaku - stats.cloKanko, stats.cloKeiyaku)}%</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
+            <div className="bg-slate-800/50 p-4 rounded-xl">
+              <p className="text-[10px] text-slate-500 font-bold mb-1">クロ商談数</p>
+              <p className="text-xl font-bold">{stats.cloShodan}</p>
+            </div>
+            <div className="bg-slate-800/50 p-4 rounded-xl">
+              <p className="text-[10px] text-slate-500 font-bold mb-1">クロ契約数</p>
+              <p className="text-xl font-bold">{stats.cloKeiyaku}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportingPage({ user, staffList, dailyReports, closingReports, setDailyReports, setClosingReports }) {
+  const [activeTab, setActiveTab] = useState('アポイント報告');
+
+  const handleSubmitAppo = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const newReport = {
+      id: Date.now().toString(),
+      staffId: user.id,
+      date: fd.get('date'),
+      type: fd.get('type'),
+      pingpong: parseInt(fd.get('pingpong')),
+      response: parseInt(fd.get('response')),
+      inkick: parseInt(fd.get('inkick')),
+      doorkick: parseInt(fd.get('doorkick')),
+      outOfScope: parseInt(fd.get('outOfScope')),
+      appu: parseInt(fd.get('appu')),
+      appo: parseInt(fd.get('appo')),
+    };
+    setDailyReports([...dailyReports, newReport]);
+    e.target.reset();
+    alert('アポイント報告を送信しました。');
+  };
+
+  const handleSubmitClo = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const newReport = {
+      id: Date.now().toString(),
+      date: fd.get('date'),
+      appointerId: fd.get('appointerId'),
+      closerId: fd.get('closerId'),
+      customer: fd.get('customer'),
+      result: fd.get('result'),
+      sales: parseInt(fd.get('sales') || 0),
+      adminCommentAppo: fd.get('commentAppo'),
+      adminCommentCloser: fd.get('commentCloser'),
+    };
+    setClosingReports([...closingReports, newReport]);
+    e.target.reset();
+    alert('クロージング報告を登録しました。');
+  };
+
+  const myAppoHistory = dailyReports.filter(r => r.staffId === user.id).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 3);
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="flex bg-slate-200 p-1 rounded-xl mb-8">
+        <button 
+          onClick={() => setActiveTab('アポイント報告')}
+          className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${activeTab === 'アポイント報告' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          アポイント報告
+        </button>
+        {user.role === ROLES.ADMIN && (
+          <button 
+            onClick={() => setActiveTab('クロージング報告')}
+            className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${activeTab === 'クロージング報告' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            クロージング報告
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'アポイント報告' ? (
+        <div className="space-y-8">
+          <form onSubmit={handleSubmitAppo} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+            <h3 className="text-xl font-bold border-b pb-4">アポイント報告</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">アポインター名</label>
+                <input readOnly value={user.name} className="w-full bg-slate-50 px-4 py-2 rounded border border-slate-200 text-slate-400 font-medium" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">日時</label>
+                <input name="date" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-white px-4 py-2 rounded border border-slate-200" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">対応タイプ</label>
+                <select name="type" className="w-full bg-white px-4 py-2 rounded border border-slate-200">
+                  <option>通常対応</option>
+                  <option>平日対応</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">ピンポン数</label>
+                <input name="pingpong" type="number" required placeholder="0" className="w-full bg-white px-4 py-2 rounded border border-slate-200" />
+              </div>
+              {['対応数', 'インキック数', 'ドアキック数', '対象外数', 'アプ数', 'アポ数'].map(field => (
+                <div key={field}>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">{field}</label>
+                  <input name={field === '対応数' ? 'response' : field === 'インキック数' ? 'inkick' : field === 'ドアキック数' ? 'doorkick' : field === '対象外数' ? 'outOfScope' : field === 'アプ数' ? 'appu' : 'appo'} type="number" required placeholder="0" className="w-full bg-white px-4 py-2 rounded border border-slate-200" />
+                </div>
+              ))}
+            </div>
+            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30">
+              報告を送信する
+            </button>
+          </form>
+
+          <div className="space-y-4">
+            <h4 className="font-bold text-slate-600">最近の履歴 (直近3件)</h4>
+            {myAppoHistory.map(h => (
+              <div key={h.id} className="bg-white p-4 rounded-lg border border-slate-100 flex items-center justify-between text-sm">
+                <div>
+                  <span className="font-bold mr-4">{h.date}</span>
+                  <span className="text-slate-400 mr-2">ピンポン:</span><span className="font-medium mr-4">{h.pingpong}</span>
+                  <span className="text-slate-400 mr-2">アポ:</span><span className="font-bold text-blue-600">{h.appo}</span>
+                </div>
+                <button className="text-blue-500 font-bold hover:underline text-xs">編集</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmitClo} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+          <h3 className="text-xl font-bold border-b pb-4">クロージング報告</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">商談日時</label>
+              <input name="date" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-white px-4 py-2 rounded border border-slate-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">アポインター選択</label>
+              <select name="appointerId" required className="w-full bg-white px-4 py-2 rounded border border-slate-200">
+                {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">クローザー選択</label>
+              <select name="closerId" required className="w-full bg-white px-4 py-2 rounded border border-slate-200">
+                {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">顧客名 (カタカナ)</label>
+              <input name="customer" placeholder="タナカ" required className="w-full bg-white px-4 py-2 rounded border border-slate-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">商談結果</label>
+              <select name="result" className="w-full bg-white px-4 py-2 rounded border border-slate-200">
+                <option>失注</option>
+                <option>契約</option>
+                <option>完工</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">売上 (万円)</label>
+              <input name="sales" type="number" placeholder="0" className="w-full bg-white px-4 py-2 rounded border border-slate-200" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">アポインターへの上長コメント (50-100字)</label>
+              <textarea name="commentAppo" minLength={50} maxLength={100} required placeholder="コメントを入力してください..." className="w-full bg-white px-4 py-2 rounded border border-slate-200 h-24" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">クローザーへの上長コメント (50-100字)</label>
+              <textarea name="commentCloser" maxLength={100} placeholder="コメントを入力してください..." className="w-full bg-white px-4 py-2 rounded border border-slate-200 h-24" />
+            </div>
+          </div>
+          <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all shadow-lg shadow-slate-500/30">
+            商談報告を登録する
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function ErrorReportPage() {
+  const [sent, setSent] = useState(false);
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center gap-3 mb-6 text-red-600">
+          <AlertCircle size={28} />
+          <h2 className="text-2xl font-bold">システムエラー報告</h2>
+        </div>
+        <p className="text-slate-500 mb-8 leading-relaxed">
+          システム上のバグが起きた場合や、こういう改善をしてほしい等の意見、報告を送付してください。
+          報告内容は管理担当者に直接送信されます。
+        </p>
+        {!sent ? (
+          <form onSubmit={(e) => { e.preventDefault(); setSent(true); }} className="space-y-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">報告・要望内容</label>
+              <textarea required className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 h-64 focus:ring-2 focus:ring-red-500 outline-none" placeholder="こちらに入力してください..."></textarea>
+            </div>
+            <button className="w-full bg-red-600 text-white py-4 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-500/30">
+              報告を送信する
+            </button>
+            <p className="text-center text-[10px] text-slate-400">送信先: uchi2022.official@gmail.com</p>
+          </form>
+        ) : (
+          <div className="bg-green-50 text-green-700 p-10 rounded-xl text-center">
+            <CheckCircle2 size={48} className="mx-auto mb-4" />
+            <p className="text-lg font-bold">報告ありがとうございます！</p>
+            <p className="text-sm mt-2">内容を確認し、順次対応させていただきます。</p>
+            <button onClick={() => setSent(false)} className="mt-8 text-sm font-bold border border-green-200 px-6 py-2 rounded-full hover:bg-green-100">別の報告を送る</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HistoryPage({ dailyReports, staffList }) {
+  const [period, setPeriod] = useState('2023-11');
+  const filtered = dailyReports.filter(r => r.date.startsWith(period)).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-100">
+        <h2 className="text-xl font-bold">全スタッフ アポイント報告履歴</h2>
+        <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-slate-50 border-none rounded px-3 py-2" />
+      </div>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="px-4 py-3">日時</th>
+              <th className="px-4 py-3">名前</th>
+              <th className="px-4 py-3">対応</th>
+              <th className="px-2 py-3 text-center">PP</th>
+              <th className="px-2 py-3 text-center">アポ</th>
+              <th className="px-4 py-3 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filtered.map(r => (
+              <tr key={r.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 whitespace-nowrap">{r.date}</td>
+                <td className="px-4 py-3 font-bold">{staffList.find(s => s.id === r.staffId)?.name}</td>
+                <td className="px-4 py-3 text-xs text-slate-500">{r.type}</td>
+                <td className="px-2 py-3 text-center">{r.pingpong}</td>
+                <td className="px-2 py-3 text-center font-bold text-blue-600">{r.appo}</td>
+                <td className="px-4 py-3 text-right">
+                  <button className="text-blue-500 hover:underline text-xs">再編集</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function StaffManagementPage({ staffList, setStaffList }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const newStaff = {
+      id: Date.now().toString(),
+      name: fd.get('name'),
+      kana: fd.get('kana'),
+      gender: fd.get('gender'),
+      dob: fd.get('dob'),
+      dept: fd.get('dept'),
+      team: fd.get('team'),
+      position: fd.get('position'),
+      role: fd.get('position') === 'クローザー' ? ROLES.ADMIN : ROLES.STAFF, // 自動振り分け
+      bio: 'よろしくお願いします。',
+      image: null
+    };
+    setStaffList([...staffList, newStaff]);
+    setShowAddForm(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">スタッフ名簿管理</h2>
+        <button 
+          onClick={() => setShowAddForm(true)}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-blue-700 transition-all"
+        >
+          スタッフ新規登録
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {staffList.map(s => (
+          <div key={s.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                <User size={32} />
+              </div>
+              <div>
+                <p className="font-black text-lg text-slate-800">{s.name}</p>
+                <p className="text-xs text-slate-400">{s.kana}</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-xs border-t pt-4">
+              <div className="flex justify-between"><span className="text-slate-400">役職</span><span className="font-bold text-blue-600">{s.position}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">チーム</span><span className="font-bold">{s.team}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">年齢</span><span className="font-bold">{calculateAge(s.dob)}歳</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">所属</span><span className="font-bold">{s.dept}</span></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showAddForm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <form onSubmit={handleAdd} className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-8 space-y-6 my-auto">
+            <div className="flex justify-between items-center border-b pb-4">
+               <h3 className="text-xl font-bold">新規スタッフ登録</h3>
+               <button type="button" onClick={() => setShowAddForm(false)}><X /></button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div><label className="block text-sm font-bold mb-2">氏名 (漢字)</label><input name="name" required className="w-full bg-slate-50 border p-2 rounded" /></div>
+              <div><label className="block text-sm font-bold mb-2">氏名 (フリガナ)</label><input name="kana" required className="w-full bg-slate-50 border p-2 rounded" /></div>
+              <div><label className="block text-sm font-bold mb-2">性別</label>
+                <select name="gender" className="w-full bg-slate-50 border p-2 rounded">
+                  <option>男性</option><option>女性</option>
+                </select>
+              </div>
+              <div><label className="block text-sm font-bold mb-2">生年月日</label><input name="dob" type="date" required className="w-full bg-slate-50 border p-2 rounded" /></div>
+              <div><label className="block text-sm font-bold mb-2">所属</label>
+                <select name="dept" className="w-full bg-slate-50 border p-2 rounded">
+                  {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                </select>
+              </div>
+              <div><label className="block text-sm font-bold mb-2">チーム</label>
+                <select name="team" className="w-full bg-slate-50 border p-2 rounded">
+                  {TEAMS.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div><label className="block text-sm font-bold mb-2">役職</label>
+                <select name="position" className="w-full bg-slate-50 border p-2 rounded">
+                  {POSITIONS.map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+            <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-500/30">登録を完了する</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
