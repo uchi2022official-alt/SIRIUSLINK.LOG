@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIRIUSLINK.LOG</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0a0e1a;
+  --navy2: #0d1525;
+  --navy3: #111e35;
+  --navy4: #162040;
+  --blue: #1a3a6b;
+  --blue2: #1e4d8c;
+  --accent: #4a9eff;
+  --accent2: #2d7dd2;
+  --gold: #c9922a;
+  --gold2: #e8b84b;
+  --silver: #8fafc8;
+  --white: #e8f0f8;
+  --white2: #b8cfe8;
+  --gray: #4a6080;
+  --gray2: #2a3a55;
+  --danger: #ff4466;
+  --success: #22d68a;
+  --glow: rgba(74,158,255,0.3);
+  --star-glow: rgba(201,146,42,0.4);
+}
+ 
+* { margin:0; padding:0; box-sizing:border-box; }
+ 
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--navy);
+  color: var(--white);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+ 
+/* ===== STARS BACKGROUND ===== */
+.stars-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 20% 20%, #0d1f3c 0%, #060c18 60%, #020408 100%);
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle var(--d) var(--delay) infinite alternate ease-in-out;
+}
+@keyframes twinkle { 0%{opacity:0.1;transform:scale(0.8)} 100%{opacity:1;transform:scale(1.2)} }
+ 
+/* ===== LOGIN ===== */
+#login-screen {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, #0d1f3c 0%, #060c18 70%);
+}
+.login-box {
+  background: linear-gradient(135deg, rgba(13,21,37,0.95), rgba(22,32,64,0.95));
+  border: 1px solid rgba(74,158,255,0.3);
+  border-radius: 20px;
+  padding: 50px 40px;
+  width: 420px;
+  max-width: 95vw;
+  position: relative;
+  box-shadow: 0 0 60px rgba(74,158,255,0.15), 0 0 120px rgba(74,158,255,0.05);
+}
+.login-box::before {
+  content: '';
+  position: absolute; inset: -1px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(74,158,255,0.4), transparent, rgba(201,146,42,0.3));
+  z-index: -1;
+}
+.login-logo {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.login-logo .logo-svg { width: 60px; height: 60px; margin: 0 auto 15px; display: block; }
+.login-logo h1 {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.4rem;
+  color: var(--gold2);
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 20px var(--star-glow);
+}
+.login-logo p { font-size: 0.75rem; color: var(--silver); margin-top: 4px; letter-spacing: 0.1em; }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 0.75rem; color: var(--silver); margin-bottom: 8px; letter-spacing: 0.08em; }
+.form-group input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(74,158,255,0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--white);
+  font-size: 0.9rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.3s;
+}
+.form-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 15px rgba(74,158,255,0.2); }
+.btn-login {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s;
+  letter-spacing: 0.1em;
+  position: relative;
+  overflow: hidden;
+}
+.btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(74,158,255,0.4); }
+.login-error { color: var(--danger); font-size: 0.8rem; text-align: center; margin-top: 12px; display: none; }
+ 
+/* ===== MAIN LAYOUT ===== */
+#app { display: none; min-height: 100vh; }
+.header {
+  position: fixed; top: 0; left: 0; right: 0; height: 56px;
+  background: linear-gradient(90deg, rgba(6,12,24,0.98), rgba(10,18,40,0.98));
+  border-bottom: 1px solid rgba(74,158,255,0.15);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+}
+.header-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem;
+  color: var(--gold2);
+  text-decoration: none;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 15px var(--star-glow);
+}
+.header-logo svg { width: 28px; height: 28px; }
+.header-user {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.85rem; color: var(--white2);
+}
+.header-user .avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; color: white;
+  border: 2px solid var(--accent);
+}
+.hamburger {
+  display: none;
+  background: none; border: none; color: var(--white); cursor: pointer;
+  font-size: 1.3rem; padding: 4px;
+}
+ 
+/* ===== SIDEBAR ===== */
+.sidebar {
+  position: fixed; top: 56px; left: 0; width: 220px; bottom: 0;
+  background: linear-gradient(180deg, rgba(8,14,28,0.98), rgba(10,16,32,0.98));
+  border-right: 1px solid rgba(74,158,255,0.1);
+  overflow-y: auto; z-index: 90;
+  padding: 15px 0;
+  transition: transform 0.3s;
+}
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(74,158,255,0.3); border-radius: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 18px;
+  color: var(--silver);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.82rem;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+.nav-item:hover { color: var(--white); background: rgba(74,158,255,0.06); border-left-color: rgba(74,158,255,0.3); }
+.nav-item.active { color: var(--accent); background: rgba(74,158,255,0.1); border-left-color: var(--accent); }
+.nav-item .nav-icon { width: 18px; text-align: center; font-size: 0.9rem; }
+.nav-section-label {
+  font-size: 0.65rem; color: var(--gray); padding: 12px 18px 4px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.nav-divider { height: 1px; background: rgba(74,158,255,0.08); margin: 8px 15px; }
+ 
+/* ===== CONTENT ===== */
+.main-content {
+  margin-left: 220px;
+  margin-top: 56px;
+  padding: 25px;
+  min-height: calc(100vh - 56px);
+  position: relative; z-index: 1;
+}
+ 
+/* ===== PAGE SECTIONS ===== */
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+ 
+/* ===== COMPONENTS ===== */
+.page-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.2rem;
+  color: var(--gold2);
+  letter-spacing: 0.1em;
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.page-title::before {
+  content: '';
+  width: 4px; height: 22px;
+  background: linear-gradient(180deg, var(--gold2), var(--accent));
+  border-radius: 2px;
+  display: inline-block;
+}
+ 
+.card {
+  background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(17,30,53,0.9));
+  border: 1px solid rgba(74,158,255,0.15);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74,158,255,0.4), transparent);
+}
+ 
+.stat-card {
+  background: linear-gradient(135deg, rgba(13,21,37,0.95), rgba(22,35,60,0.95));
+  border: 1px solid rgba(74,158,255,0.2);
+  border-radius: 12px;
+  padding: 18px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(74,158,255,0.2); }
+.stat-card .stat-label { font-size: 0.7rem; color: var(--silver); margin-bottom: 8px; letter-spacing: 0.05em; }
+.stat-card .stat-value { font-family: 'Orbitron', monospace; font-size: 1.9rem; font-weight: 700; color: var(--accent); }
+.stat-card .stat-unit { font-size: 0.7rem; color: var(--silver); margin-left: 3px; }
+.stat-card.gold .stat-value { color: var(--gold2); }
+.stat-card.large .stat-value { font-size: 2.6rem; }
+ 
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+ 
+.section-title {
+  font-size: 0.85rem; font-weight: 700; color: var(--white2);
+  margin: 20px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(74,158,255,0.15);
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::before { content: '◈'; color: var(--accent); font-size: 0.7rem; }
+ 
+.period-tabs {
+  display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.period-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(74,158,255,0.25);
+  background: transparent;
+  color: var(--silver);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.period-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+.period-tab:hover { border-color: var(--accent); color: var(--accent); }
+ 
+select, input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], textarea {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(74,158,255,0.2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--white);
+  font-size: 0.85rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.2s;
+}
+select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px rgba(74,158,255,0.15); }
+select option { background: var(--navy2); color: var(--white); }
+ 
+.btn {
+  padding: 9px 20px; border-radius: 8px; border: none;
+  font-family: 'Noto Sans JP', sans-serif; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em;
+}
+.btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: white; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74,158,255,0.35); }
+.btn-secondary { background: rgba(74,158,255,0.1); border: 1px solid rgba(74,158,255,0.3); color: var(--accent); }
+.btn-secondary:hover { background: rgba(74,158,255,0.2); }
+.btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold2)); color: white; }
+.btn-danger { background: rgba(255,68,102,0.15); border: 1px solid rgba(255,68,102,0.3); color: var(--danger); }
+ 
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-col { flex: 1; min-width: 150px; }
+.form-col label { display: block; font-size: 0.75rem; color: var(--silver); margin-bottom: 5px; }
+.form-col select, .form-col input, .form-col textarea { width: 100%; }
+ 
+/* ===== TIMELINE ===== */
+.timeline-item {
+  background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(17,30,53,0.9));
+  border: 1px solid rgba(74,158,255,0.15);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 15px;
+  position: relative;
+  overflow: hidden;
+  animation: slideIn 0.4s ease;
+}
+@keyframes slideIn { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+.timeline-item::before {
+  content: '';
+  position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+  background: linear-gradient(180deg, var(--gold2), var(--accent));
+}
+.timeline-header { font-size: 0.8rem; color: var(--gold2); margin-bottom: 12px; letter-spacing: 0.05em; }
+.timeline-stars { color: var(--gold2); font-size: 1rem; margin-bottom: 8px; }
+.timeline-info { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+.timeline-info span { font-size: 0.8rem; color: var(--white2); }
+.timeline-info strong { color: var(--white); }
+.timeline-comment {
+  background: rgba(74,158,255,0.06);
+  border: 1px solid rgba(74,158,255,0.1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  color: var(--silver);
+  margin-top: 8px;
+}
+.timeline-comment strong { color: var(--accent); }
+ 
+/* ===== RANKING ===== */
+.ranking-container { position: relative; }
+.ranking-podium {
+  display: flex; justify-content: center; align-items: flex-end; gap: 10px;
+  margin: 30px 0; padding: 0 20px;
+}
+.podium-item {
+  flex: 1; max-width: 160px;
+  display: flex; flex-direction: column; align-items: center;
+  position: relative;
+}
+.podium-rank-1 .podium-block { height: 120px; background: linear-gradient(180deg, rgba(201,146,42,0.4), rgba(201,146,42,0.15)); border: 1px solid var(--gold2); }
+.podium-rank-2 .podium-block { height: 90px; background: linear-gradient(180deg, rgba(140,160,190,0.3), rgba(140,160,190,0.1)); border: 1px solid #8ca0be; }
+.podium-rank-3 .podium-block { height: 70px; background: linear-gradient(180deg, rgba(180,110,60,0.3), rgba(180,110,60,0.1)); border: 1px solid #b46e3c; }
+.podium-block {
+  width: 100%; border-radius: 8px 8px 0 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 900;
+}
+.podium-rank-1 .podium-block { color: var(--gold2); font-size: 1.6rem; }
+.podium-rank-2 .podium-block { color: #8ca0be; }
+.podium-rank-3 .podium-block { color: #b46e3c; }
+.podium-crown { font-size: 1.8rem; margin-bottom: 6px; }
+.podium-rank-1 .podium-crown { font-size: 2.4rem; animation: float 2s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+.podium-avatar {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; font-weight: 700; color: white;
+  margin-bottom: 6px;
+  border: 2px solid rgba(74,158,255,0.5);
+  overflow: hidden;
+}
+.podium-rank-1 .podium-avatar { width: 65px; height: 65px; border-color: var(--gold2); border-width: 3px; }
+.podium-name { font-size: 0.8rem; color: var(--white); font-weight: 700; margin-bottom: 3px; text-align: center; }
+.podium-value { font-size: 0.75rem; color: var(--silver); text-align: center; }
+ 
+.ranking-list-item {
+  display: flex; align-items: center; gap: 15px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(13,21,37,0.8), rgba(17,30,53,0.8));
+  border: 1px solid rgba(74,158,255,0.1);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.ranking-list-item:hover { border-color: rgba(74,158,255,0.3); background: rgba(74,158,255,0.05); }
+.rank-badge {
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem; font-weight: 900;
+  min-width: 36px; text-align: center;
+}
+.rank-1 { color: var(--gold2); text-shadow: 0 0 10px var(--star-glow); }
+.rank-2 { color: #aabcd4; }
+.rank-3 { color: #b46e3c; }
+.rank-other { color: var(--gray); font-size: 0.85rem; }
+.rank-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; font-weight: 700; color: white;
+  flex-shrink: 0; overflow: hidden; border: 2px solid rgba(74,158,255,0.3);
+}
+.rank-name { font-size: 0.9rem; font-weight: 700; flex: 1; }
+.rank-value { font-family: 'Orbitron', monospace; font-size: 1rem; color: var(--accent); font-weight: 700; }
+.rank-unit { font-size: 0.7rem; color: var(--silver); margin-left: 2px; }
+ 
+/* Ranking sparkle effect for top 3 */
+.ranking-list-item.top1 { border-color: rgba(201,146,42,0.4); background: linear-gradient(135deg, rgba(201,146,42,0.08), rgba(13,21,37,0.95)); }
+.ranking-list-item.top2 { border-color: rgba(170,188,212,0.3); }
+.ranking-list-item.top3 { border-color: rgba(180,110,60,0.3); }
+ 
+.rank-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.rank-tab {
+  padding: 7px 14px; border-radius: 20px;
+  border: 1px solid rgba(74,158,255,0.2);
+  background: transparent; color: var(--silver);
+  font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.rank-tab.active { background: linear-gradient(135deg, var(--accent2), var(--accent)); border-color: var(--accent); color: white; }
+ 
+/* ===== STAFF TABLE ===== */
+.staff-table { width: 100%; border-collapse: collapse; }
+.staff-table th {
+  background: rgba(74,158,255,0.08);
+  padding: 10px 12px; font-size: 0.72rem;
+  color: var(--silver); font-weight: 600;
+  border-bottom: 1px solid rgba(74,158,255,0.15);
+  white-space: nowrap;
+}
+.staff-table td {
+  padding: 10px 12px; font-size: 0.78rem;
+  border-bottom: 1px solid rgba(74,158,255,0.06);
+  color: var(--white2);
+  white-space: nowrap;
+}
+.staff-table tr:hover td { background: rgba(74,158,255,0.04); }
+.staff-table .staff-link { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.staff-table .staff-link:hover .staff-name-text { color: var(--accent); text-decoration: underline; }
+.mini-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; color: white;
+  flex-shrink: 0; overflow: hidden; border: 1px solid rgba(74,158,255,0.3);
+}
+ 
+/* ===== PROFILE ===== */
+.profile-header {
+  display: flex; align-items: center; gap: 25px;
+  background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(22,35,60,0.9));
+  border: 1px solid rgba(74,158,255,0.2);
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.profile-avatar-wrap { position: relative; }
+.profile-avatar {
+  width: 90px; height: 90px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 700; color: white;
+  border: 3px solid var(--accent); overflow: hidden;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-edit {
+  position: absolute; bottom: 0; right: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; cursor: pointer; border: 2px solid var(--navy2);
+}
+.profile-info h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+.profile-info .furigana { font-size: 0.75rem; color: var(--silver); margin-bottom: 10px; }
+.profile-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.profile-tag {
+  padding: 4px 12px; border-radius: 12px;
+  font-size: 0.72rem; font-weight: 600;
+  background: rgba(74,158,255,0.1); border: 1px solid rgba(74,158,255,0.25); color: var(--accent);
+}
+.profile-tag.gold { background: rgba(201,146,42,0.1); border-color: rgba(201,146,42,0.3); color: var(--gold2); }
+.profile-quote {
+  margin-top: 10px; font-size: 0.85rem;
+  color: var(--white2); font-style: italic;
+}
+ 
+/* ===== REPORT FORM ===== */
+.report-tabs { display: flex; gap: 0; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(74,158,255,0.2); }
+.report-tab-btn {
+  flex: 1; padding: 12px; background: transparent;
+  border: none; color: var(--silver);
+  font-family: 'Noto Sans JP', sans-serif; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em;
+}
+.report-tab-btn.active { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: white; }
+ 
+.history-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(74,158,255,0.1);
+  border-radius: 10px; padding: 14px;
+  margin-bottom: 8px; position: relative;
+}
+.history-item .history-date { font-size: 0.72rem; color: var(--silver); margin-bottom: 6px; }
+.history-item .history-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.history-item .history-stat { font-size: 0.78rem; }
+.history-item .history-stat span { color: var(--silver); }
+.history-item .history-stat strong { color: var(--accent); }
+.btn-edit-small {
+  position: absolute; right: 12px; top: 12px;
+  padding: 4px 10px; border-radius: 6px;
+  background: rgba(74,158,255,0.1); border: 1px solid rgba(74,158,255,0.2);
+  color: var(--accent); font-size: 0.7rem; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+ 
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: linear-gradient(135deg, rgba(10,14,26,0.98), rgba(14,22,42,0.98));
+  border: 1px solid rgba(74,158,255,0.25);
+  border-radius: 16px; padding: 25px;
+  width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal::-webkit-scrollbar { width: 3px; }
+.modal::-webkit-scrollbar-thumb { background: rgba(74,158,255,0.3); border-radius: 2px; }
+.modal-title { font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(74,158,255,0.15); }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(74,158,255,0.1); }
+ 
+/* ===== TOAST ===== */
+.toast {
+  position: fixed; bottom: 25px; right: 25px; z-index: 9999;
+  background: linear-gradient(135deg, rgba(13,21,37,0.97), rgba(17,30,53,0.97));
+  border: 1px solid rgba(74,158,255,0.3);
+  border-radius: 12px; padding: 14px 20px;
+  font-size: 0.85rem; color: var(--white);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  transform: translateY(80px); opacity: 0;
+  transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  max-width: 350px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(34,214,138,0.4); }
+.toast.error { border-color: rgba(255,68,102,0.4); }
+ 
+/* ===== CANCEL RATE ===== */
+.cancel-rate-card {
+  background: linear-gradient(135deg, rgba(255,68,102,0.1), rgba(13,21,37,0.9));
+  border: 1px solid rgba(255,68,102,0.25);
+}
+.cancel-rate-card .stat-value { color: var(--danger); }
+ 
+/* ===== CONTRACT BADGE ===== */
+.contract-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 10px;
+  font-size: 0.72rem; font-weight: 700;
+}
+.badge-contract { background: rgba(34,214,138,0.15); border: 1px solid rgba(34,214,138,0.3); color: var(--success); }
+.badge-lost { background: rgba(255,68,102,0.1); border: 1px solid rgba(255,68,102,0.2); color: var(--danger); }
+.badge-complete { background: rgba(74,158,255,0.15); border: 1px solid rgba(74,158,255,0.3); color: var(--accent); }
+ 
+/* ===== ERROR REPORT ===== */
+.error-report-box { background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(17,30,53,0.9)); border: 1px solid rgba(74,158,255,0.15); border-radius: 14px; padding: 25px; }
+.error-report-box .subtitle { font-size: 0.82rem; color: var(--silver); margin-bottom: 20px; line-height: 1.7; }
+.error-report-box textarea { width: 100%; height: 150px; resize: vertical; }
+ 
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay {
+    position: fixed; inset: 0; z-index: 85;
+    background: rgba(0,0,0,0.5); display: none;
+  }
+  .sidebar-overlay.open { display: block; }
+  .main-content { margin-left: 0; padding: 15px; }
+  .hamburger { display: block; }
+  .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr 1fr; }
+  .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr); }
+  .stat-card.large .stat-value { font-size: 1.8rem; }
+  .ranking-podium { gap: 6px; }
+  .podium-item { max-width: 110px; }
+}
+@media (max-width: 480px) {
+  .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
+  .form-row { flex-direction: column; }
+  .profile-header { flex-direction: column; align-items: flex-start; }
+}
+ 
+/* ===== NOTIFICATION ===== */
+.notif-banner {
+  position: fixed; top: 65px; right: 15px; z-index: 400;
+  background: linear-gradient(135deg, rgba(22,35,60,0.98), rgba(13,21,37,0.98));
+  border: 1px solid var(--gold2);
+  border-radius: 14px; padding: 15px 18px;
+  max-width: 300px; font-size: 0.82rem;
+  box-shadow: 0 8px 25px rgba(201,146,42,0.25);
+  animation: notifSlide 0.5s ease;
+  display: none;
+}
+@keyframes notifSlide { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
+.notif-banner .notif-icon { font-size: 1.3rem; margin-bottom: 6px; }
+.notif-banner .notif-title { color: var(--gold2); font-weight: 700; margin-bottom: 4px; }
+.notif-banner .notif-body { color: var(--white2); line-height: 1.5; }
+ 
+/* ===== GLITTER STARS ===== */
+.glitter { position: absolute; pointer-events: none; }
+.glitter::before, .glitter::after {
+  content: '✦';
+  position: absolute;
+  color: rgba(201,146,42,0.4);
+  font-size: 0.5rem;
+  animation: glitter-anim 3s infinite;
+}
+@keyframes glitter-anim { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }
+ 
+/* ===== TEAM COLORS ===== */
+.team-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 10px;
+  font-size: 0.72rem; font-weight: 700;
+  background: rgba(74,158,255,0.1);
+  border: 1px solid rgba(74,158,255,0.25);
+  color: var(--accent);
+}
+ 
+/* ===== TABLE WRAPPER ===== */
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid rgba(74,158,255,0.1); }
+ 
+/* Shimmer loading */
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px; height: 20px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+ 
+/* Rate display */
+.rate-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 600px) { .rate-grid { grid-template-columns: repeat(2, 1fr); } }
+.rate-item {
+  background: rgba(74,158,255,0.05);
+  border: 1px solid rgba(74,158,255,0.12);
+  border-radius: 10px; padding: 12px;
+  text-align: center;
+}
+.rate-item .rate-label { font-size: 0.68rem; color: var(--silver); margin-bottom: 6px; }
+.rate-item .rate-value { font-family: 'Orbitron', monospace; font-size: 1.1rem; color: var(--accent2); font-weight: 700; }
+</style>
+</head>
+<body>
+ 
+<!-- Stars Background -->
+<div class="stars-bg" id="stars-bg"></div>
+ 
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg class="logo-svg" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="30" y1="5" x2="10" y2="45" stroke="#c9922a" stroke-width="2" stroke-linecap="round"/>
+        <line x1="30" y1="5" x2="50" y2="45" stroke="#c9922a" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="30" cy="5" r="3" fill="#e8b84b"/>
+        <circle cx="10" cy="45" r="2" fill="#c9922a"/>
+        <circle cx="50" cy="45" r="1.5" fill="#c9922a"/>
+        <circle cx="30" cy="32" r="4" fill="none" stroke="#e8b84b" stroke-width="1.5"/>
+        <circle cx="30" cy="32" r="1.5" fill="#e8b84b"/>
+        <line x1="18" y1="28" x2="14" y2="20" stroke="#c9922a" stroke-width="1" opacity="0.6"/>
+        <line x1="42" y1="28" x2="46" y2="20" stroke="#c9922a" stroke-width="1" opacity="0.6"/>
+      </svg>
+      <h1>SIRIUSLINK.LOG</h1>
+      <p>営業成績管理システム</p>
+    </div>
+    <div class="form-group">
+      <label>メールアドレス</label>
+      <input type="email" id="login-email" placeholder="example@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>パスワード</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-login" onclick="doLogin()">ログイン ✦</button>
+    <p class="login-error" id="login-error">メールアドレスまたはパスワードが違います</p>
+  </div>
+</div>
+ 
+<!-- Sidebar overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+ 
+<!-- Main App -->
+<div id="app">
+  <!-- Header -->
+  <header class="header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <a class="header-logo" href="#" onclick="navigate('timeline')">
+        <svg viewBox="0 0 28 28" fill="none">
+          <line x1="14" y1="2" x2="4" y2="22" stroke="#e8b84b" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="14" y1="2" x2="24" y2="22" stroke="#e8b84b" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="14" cy="2" r="1.8" fill="#e8b84b"/>
+          <circle cx="14" cy="14" r="2.5" fill="none" stroke="#e8b84b" stroke-width="1.2"/>
+          <circle cx="14" cy="14" r="1" fill="#e8b84b"/>
+        </svg>
+        SIRIUSLINK.LOG
+      </a>
+    </div>
+    <div class="header-user">
+      <div class="avatar" id="header-avatar">?</div>
+      <span id="header-username">-</span>
+    </div>
+  </header>
+ 
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="nav-section-label">メイン</div>
+    <div class="nav-item active" onclick="navigate('timeline')" data-page="timeline">
+      <span class="nav-icon">⭐</span>タイムライン
+    </div>
+    <div class="nav-item" onclick="navigate('overall')" data-page="overall">
+      <span class="nav-icon">📊</span>全体営業成績
+    </div>
+    <div class="nav-item" onclick="navigate('ranking-individual')" data-page="ranking-individual">
+      <span class="nav-icon">🏆</span>営業成績ランキング（個人）
+    </div>
+    <div class="nav-item" onclick="navigate('ranking-team')" data-page="ranking-team">
+      <span class="nav-icon">🥇</span>営業成績ランキング（チーム）
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-section-label">個人</div>
+    <div class="nav-item" onclick="navigate('profile')" data-page="profile">
+      <span class="nav-icon">👤</span>個人プロフィール
+    </div>
+    <div class="nav-item" onclick="navigate('report')" data-page="report">
+      <span class="nav-icon">📝</span>日報・商談報告
+    </div>
+    <div class="nav-item" onclick="navigate('error-report')" data-page="error-report">
+      <span class="nav-icon">⚠️</span>システムエラー報告
+    </div>
+    <div class="nav-divider" id="admin-divider" style="display:none"></div>
+    <div class="nav-section-label" id="admin-section-label" style="display:none">管理者</div>
+    <div class="nav-item admin-only" onclick="navigate('history')" data-page="history" style="display:none">
+      <span class="nav-icon">🗂️</span>履歴
+    </div>
+    <div class="nav-item admin-only" onclick="navigate('staff-roster')" data-page="staff-roster" style="display:none">
+      <span class="nav-icon">📋</span>スタッフ名簿
+    </div>
+    <div class="nav-item" onclick="navigate('team-register')" data-page="team-register">
+      <span class="nav-icon">👥</span>チーム登録
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" onclick="doLogout()" style="color:var(--gray);">
+      <span class="nav-icon">🚪</span>ログアウト
+    </div>
+  </nav>
+ 
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+ 
+    <!-- ===== TIMELINE PAGE ===== -->
+    <div class="page active" id="page-timeline">
+      <div class="page-title">⭐ タイムライン</div>
+      <p style="font-size:0.8rem;color:var(--silver);margin-bottom:20px;">契約成立のお知らせ（直近10件）</p>
+      <div id="timeline-list"></div>
+    </div>
+ 
+    <!-- ===== OVERALL PAGE ===== -->
+    <div class="page" id="page-overall">
+      <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
+        <div class="page-title" style="margin:0">📊 全体営業成績</div>
+        <div class="period-tabs" id="overall-period-tabs">
+          <button class="period-tab active" data-period="month" onclick="switchPeriod('overall','month',this)">月別</button>
+          <button class="period-tab" data-period="q1" onclick="switchPeriod('overall','q1',this)">第1クール(1-3月)</button>
+          <button class="period-tab" data-period="q2" onclick="switchPeriod('overall','q2',this)">第2クール(4-6月)</button>
+          <button class="period-tab" data-period="q3" onclick="switchPeriod('overall','q3',this)">第3クール(7-9月)</button>
+          <button class="period-tab" data-period="q4" onclick="switchPeriod('overall','q4',this)">第4クール(10-12月)</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;" id="overall-month-select-wrap">
+        <select id="overall-year" onchange="renderOverall()"></select>
+        <select id="overall-month" onchange="renderOverall()"></select>
+      </div>
+      <h2 id="overall-heading" style="font-size:1rem;font-weight:700;color:var(--white2);margin-bottom:20px;"></h2>
+      <div id="overall-content"></div>
+    </div>
+ 
+    <!-- ===== RANKING INDIVIDUAL PAGE ===== -->
+    <div class="page" id="page-ranking-individual">
+      <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
+        <div class="page-title" style="margin:0">🏆 営業成績ランキング（個人）</div>
+        <div class="period-tabs" id="rank-ind-period-tabs">
+          <button class="period-tab active" data-period="month" onclick="switchPeriod('rank-ind','month',this)">月別</button>
+          <button class="period-tab" data-period="q1" onclick="switchPeriod('rank-ind','q1',this)">第1クール</button>
+          <button class="period-tab" data-period="q2" onclick="switchPeriod('rank-ind','q2',this)">第2クール</button>
+          <button class="period-tab" data-period="q3" onclick="switchPeriod('rank-ind','q3',this)">第3クール</button>
+          <button class="period-tab" data-period="q4" onclick="switchPeriod('rank-ind','q4',this)">第4クール</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;" id="rank-ind-month-select-wrap">
+        <select id="rank-ind-year" onchange="renderRankingIndividual()"></select>
+        <select id="rank-ind-month" onchange="renderRankingIndividual()"></select>
+      </div>
+      <div class="rank-tabs" id="rank-ind-category-tabs">
+        <div class="rank-tab-group">
+          <div style="font-size:0.7rem;color:var(--silver);margin-bottom:6px;letter-spacing:0.1em;">アポイント</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="rank-tab active" onclick="switchRankTab('ind','apo-complete',this)">完工数</button>
+            <button class="rank-tab" onclick="switchRankTab('ind','apo-meetings',this)">商談数</button>
+            <button class="rank-tab" onclick="switchRankTab('ind','apo-count',this)">アポ数</button>
+            <button class="rank-tab" onclick="switchRankTab('ind','pinpon-count',this)">ピンポン数</button>
+            <button class="rank-tab" onclick="switchRankTab('ind','pinpon-rate',this)">ピンポン完工率</button>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="font-size:0.7rem;color:var(--silver);margin-bottom:6px;letter-spacing:0.1em;">クロージング</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="rank-tab" onclick="switchRankTab('ind','clo-complete',this)">完工数</button>
+            <button class="rank-tab" onclick="switchRankTab('ind','clo-rate',this)">商談完工率</button>
+            <button class="rank-tab" onclick="switchRankTab('ind','cancel-rate',this)">キャンセル率（低順）</button>
+          </div>
+        </div>
+      </div>
+      <h2 id="rank-ind-heading" style="font-size:1rem;font-weight:700;color:var(--white2);margin-bottom:20px;"></h2>
+      <div id="rank-ind-content"></div>
+    </div>
+ 
+    <!-- ===== RANKING TEAM PAGE ===== -->
+    <div class="page" id="page-ranking-team">
+      <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
+        <div class="page-title" style="margin:0">🥇 営業成績ランキング（チーム）</div>
+        <div class="period-tabs">
+          <button class="period-tab active" data-period="month" onclick="switchPeriod('rank-team','month',this)">月別</button>
+          <button class="period-tab" data-period="q1" onclick="switchPeriod('rank-team','q1',this)">第1クール</button>
+          <button class="period-tab" data-period="q2" onclick="switchPeriod('rank-team','q2',this)">第2クール</button>
+          <button class="period-tab" data-period="q3" onclick="switchPeriod('rank-team','q3',this)">第3クール</button>
+          <button class="period-tab" data-period="q4" onclick="switchPeriod('rank-team','q4',this)">第4クール</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;" id="rank-team-month-select-wrap">
+        <select id="rank-team-year" onchange="renderRankingTeam()"></select>
+        <select id="rank-team-month" onchange="renderRankingTeam()"></select>
+      </div>
+      <div class="rank-tabs">
+        <div class="rank-tab-group">
+          <div style="font-size:0.7rem;color:var(--silver);margin-bottom:6px;letter-spacing:0.1em;">アポイント</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="rank-tab active" onclick="switchRankTab('team','apo-complete',this)">完工数</button>
+            <button class="rank-tab" onclick="switchRankTab('team','apo-meetings',this)">商談数</button>
+            <button class="rank-tab" onclick="switchRankTab('team','apo-count',this)">アポ数</button>
+            <button class="rank-tab" onclick="switchRankTab('team','pinpon-count',this)">ピンポン数</button>
+            <button class="rank-tab" onclick="switchRankTab('team','pinpon-rate',this)">ピンポン完工率</button>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="font-size:0.7rem;color:var(--silver);margin-bottom:6px;letter-spacing:0.1em;">クロージング</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="rank-tab" onclick="switchRankTab('team','clo-complete',this)">完工数</button>
+            <button class="rank-tab" onclick="switchRankTab('team','clo-rate',this)">商談完工率</button>
+            <button class="rank-tab" onclick="switchRankTab('team','cancel-rate',this)">キャンセル率（低順）</button>
+          </div>
+        </div>
+      </div>
+      <h2 id="rank-team-heading" style="font-size:1rem;font-weight:700;color:var(--white2);margin-bottom:20px;"></h2>
+      <div id="rank-team-content"></div>
+    </div>
+ 
+    <!-- ===== PROFILE PAGE ===== -->
+    <div class="page" id="page-profile">
+      <div class="page-title">👤 個人プロフィール</div>
+      <div id="profile-content"></div>
+    </div>
+ 
+    <!-- ===== REPORT PAGE ===== -->
+    <div class="page" id="page-report">
+      <div class="page-title">📝 日報・商談報告</div>
+      <div class="report-tabs" id="report-tabs">
+        <button class="report-tab-btn active" onclick="switchReportTab('appoint',this)">アポイント報告</button>
+        <button class="report-tab-btn admin-report-tab" onclick="switchReportTab('closing',this)" style="display:none">クロージング報告</button>
+      </div>
+      <div id="report-appoint-section">
+        <div class="card">
+          <div class="section-title">アポイント報告</div>
+          <div class="form-row">
+            <div class="form-col"><label>アポインター名</label><input type="text" id="r-appointer" readonly style="background:rgba(74,158,255,0.05)"></div>
+            <div class="form-col"><label>日時</label><input type="date" id="r-date"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-col">
+              <label>平日対応 / 通常対応</label>
+              <select id="r-daytype">
+                <option value="normal">通常対応（1日）</option>
+                <option value="weekday">平日対応（0.3日）</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col"><label>ピンポン数</label><input type="number" id="r-pinpon" min="0" value="0"></div>
+            <div class="form-col"><label>対応数</label><input type="number" id="r-taio" min="0" value="0"></div>
+            <div class="form-col"><label>インキック数</label><input type="number" id="r-inkick" min="0" value="0"></div>
+            <div class="form-col"><label>ドアキック数</label><input type="number" id="r-doakick" min="0" value="0"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-col"><label>対象外数</label><input type="number" id="r-taishougai" min="0" value="0"></div>
+            <div class="form-col"><label>アプ数</label><input type="number" id="r-apu" min="0" value="0"></div>
+            <div class="form-col"><label>アポ数</label><input type="number" id="r-apo" min="0" value="0"></div>
+          </div>
+          <div style="margin-top:15px;">
+            <button class="btn btn-primary" onclick="submitAppointReport()">送信 ✦</button>
+            <button class="btn btn-secondary" id="r-cancel-edit" style="display:none;margin-left:10px;" onclick="cancelEdit()">キャンセル</button>
+          </div>
+        </div>
+        <div class="section-title" style="margin-top:20px;">履歴（直近3件）</div>
+        <div id="appoint-history-list"></div>
+      </div>
+ 
+      <div id="report-closing-section" style="display:none">
+        <div class="card">
+          <div class="section-title">クロージング報告</div>
+          <div class="form-row">
+            <div class="form-col"><label>商談日時</label><input type="date" id="c-date"></div>
+            <div class="form-col">
+              <label>アポインター名</label>
+              <select id="c-appointer"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col">
+              <label>クローザー名</label>
+              <select id="c-closer"></select>
+            </div>
+            <div class="form-col">
+              <label>コメント記入者</label>
+              <select id="c-commenter"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col"><label>顧客名（カタカナ）</label><input type="text" id="c-customer" placeholder="例）タナカ タロウ"></div>
+            <div class="form-col">
+              <label>商談結果</label>
+              <select id="c-result" onchange="toggleCloserComment()">
+                <option value="lost">失注</option>
+                <option value="contract">契約</option>
+                <option value="complete">完工</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col">
+              <label>アポインターへのコメント（50〜100文字）</label>
+              <textarea id="c-apo-comment" rows="3" placeholder="50〜100文字で記入してください"></textarea>
+              <div style="font-size:0.7rem;color:var(--silver);margin-top:3px;" id="c-apo-count">0文字</div>
+            </div>
+          </div>
+          <div class="form-row" id="closer-comment-wrap">
+            <div class="form-col">
+              <label>クローザーへのコメント（50〜100文字）※クローザー＝記入者の場合は任意</label>
+              <textarea id="c-clo-comment" rows="3" placeholder="50〜100文字で記入してください（任意）"></textarea>
+              <div style="font-size:0.7rem;color:var(--silver);margin-top:3px;" id="c-clo-count">0文字</div>
+            </div>
+          </div>
+          <div style="margin-top:15px;">
+            <button class="btn btn-primary" onclick="submitClosingReport()">送信 ✦</button>
+            <button class="btn btn-secondary" id="c-cancel-edit" style="display:none;margin-left:10px;" onclick="cancelClosingEdit()">キャンセル</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap;">
+          <div class="section-title" style="margin:0;">履歴</div>
+          <select id="closing-hist-year" onchange="renderClosingHistory()"></select>
+          <select id="closing-hist-month" onchange="renderClosingHistory()">
+            <option value="all">全月</option>
+          </select>
+        </div>
+        <div id="closing-history-list" style="margin-top:12px;"></div>
+      </div>
+    </div>
+ 
+    <!-- ===== ERROR REPORT PAGE ===== -->
+    <div class="page" id="page-error-report">
+      <div class="page-title">⚠️ システムエラー報告</div>
+      <div class="error-report-box">
+        <p class="subtitle">システム上のバグが起きた場合や、こういう改善をしてほしい等の意見、報告を送付してください。</p>
+        <div class="form-row">
+          <div class="form-col"><label>報告者名</label><input type="text" id="err-reporter" readonly style="background:rgba(74,158,255,0.05)"></div>
+          <div class="form-col"><label>件名</label><input type="text" id="err-subject" placeholder="件名を入力"></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:0.75rem;color:var(--silver);margin-bottom:5px;">内容</label>
+          <textarea id="err-content" rows="6" placeholder="詳細を記入してください"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitErrorReport()">送信 ✦</button>
+        <div id="err-status" style="margin-top:10px;font-size:0.8rem;"></div>
+      </div>
+    </div>
+ 
+    <!-- ===== HISTORY PAGE (Admin Only) ===== -->
+    <div class="page" id="page-history">
+      <div class="page-title">🗂️ 履歴（管理者）</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
+        <label style="font-size:0.8rem;color:var(--silver);">期間：</label>
+        <select id="hist-year" onchange="renderHistory()"></select>
+        <select id="hist-month" onchange="renderHistory()"><option value="all">全月</option></select>
+        <select id="hist-staff" onchange="renderHistory()"><option value="all">全スタッフ</option></select>
+      </div>
+      <div id="history-content"></div>
+    </div>
+ 
+    <!-- ===== STAFF ROSTER PAGE (Admin Only) ===== -->
+    <div class="page" id="page-staff-roster">
+      <div class="page-title">📋 スタッフ名簿（管理者）</div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-title">スタッフ登録</div>
+        <div id="staff-form-content"></div>
+        <div style="margin-top:15px;">
+          <button class="btn btn-primary" onclick="submitStaff()">登録 ✦</button>
+          <button class="btn btn-secondary" id="staff-cancel-edit" style="display:none;margin-left:10px;" onclick="cancelStaffEdit()">キャンセル</button>
+        </div>
+      </div>
+      <div class="section-title">名簿一覧</div>
+      <div id="staff-roster-list"></div>
+    </div>
+ 
+    <!-- ===== TEAM REGISTER PAGE ===== -->
+    <div class="page" id="page-team-register">
+      <div class="page-title">👥 チーム登録</div>
+      <div class="card" style="margin-bottom:20px;" id="team-form-wrap">
+        <div class="section-title">チーム登録</div>
+        <div class="form-row">
+          <div class="form-col"><label>チーム名</label><input type="text" id="team-name" placeholder="チーム名を入力"></div>
+        </div>
+        <div class="form-col" style="margin-bottom:12px;">
+          <label>配属メンバー（複数選択可）</label>
+          <div id="team-member-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
+        </div>
+        <button class="btn btn-primary" onclick="submitTeam()">登録 ✦</button>
+        <button class="btn btn-secondary" id="team-cancel-edit" style="display:none;margin-left:10px;" onclick="cancelTeamEdit()">キャンセル</button>
+      </div>
+      <div class="section-title">チーム一覧</div>
+      <div id="team-list"></div>
+    </div>
+ 
+  </main>
+</div>
+ 
+<!-- Notification Banner -->
+<div class="notif-banner" id="notif-banner"></div>
+ 
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+ 
+<!-- Modals -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+ 
+<script>
+// ===== DATA STORE (localStorage) =====
+const STORE = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem('sl_'+k)) || null; } catch(e){ return null; } },
+  set: (k, v) => { localStorage.setItem('sl_'+k, JSON.stringify(v)); },
+};
+ 
+// ===== INITIAL DATA =====
+function initData() {
+  if (!STORE.get('staffs')) {
+    STORE.set('staffs', [
+      { id:'admin1', name:'管理者', furigana:'カンリシャ', email:'kannrisya@gmail.com', password:'kannrisya', role:'admin', gender:'male', birthday:'1990-01-01', joinDate:'2020-04-01', team:'', position:'クローザー', quote:'管理者アカウント', photo:'', active:true },
+      { id:'staff1', name:'スタッフ', furigana:'スタッフ', email:'staff@gmail.com', password:'staff', role:'staff', gender:'male', birthday:'1995-06-15', joinDate:'2022-01-01', team:'', position:'アポインター', quote:'よろしくお願いします！', photo:'', active:true }
+    ]);
+  }
+  if (!STORE.get('teams')) { STORE.set('teams', []); }
+  if (!STORE.get('appoint_reports')) { STORE.set('appoint_reports', []); }
+  if (!STORE.get('closing_reports')) { STORE.set('closing_reports', []); }
+  if (!STORE.get('error_reports')) { STORE.set('error_reports', []); }
+}
+ 
+// ===== AUTH =====
+let currentUser = null;
+ 
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-password').value;
+  const staffs = STORE.get('staffs') || [];
+  const user = staffs.find(s => s.email === email && s.password === pw && s.active !== false);
+  if (user) {
+    currentUser = user;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+ 
+function doLogout() {
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+ 
+document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+ 
+// ===== INIT APP =====
+function initApp() {
+  const u = currentUser;
+  document.getElementById('header-username').textContent = u.name;
+  document.getElementById('header-avatar').textContent = u.name.charAt(0);
+ 
+  if (u.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+    document.querySelectorAll('.admin-report-tab').forEach(el => el.style.display = 'block');
+    document.getElementById('admin-divider').style.display = 'block';
+    document.getElementById('admin-section-label').style.display = 'block';
+  }
+ 
+  // Populate year/month selects
+  const now = new Date();
+  const cy = now.getFullYear();
+  const cm = now.getMonth() + 1;
+ 
+  ['overall-year','rank-ind-year','rank-team-year','hist-year','closing-hist-year'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (let y = cy - 2; y <= cy + 1; y++) {
+      sel.innerHTML += `<option value="${y}" ${y===cy?'selected':''}>${y}年</option>`;
+    }
+  });
+  ['overall-month','rank-ind-month','rank-team-month'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (let m = 1; m <= 12; m++) {
+      sel.innerHTML += `<option value="${m}" ${m===cm?'selected':''}>${m}月</option>`;
+    }
+  });
+  // hist-month
+  const hm = document.getElementById('hist-month');
+  if (hm) { for (let m=1;m<=12;m++) hm.innerHTML += `<option value="${m}">${m}月</option>`; }
+  // closing hist month
+  const chm = document.getElementById('closing-hist-month');
+  if (chm) { for (let m=1;m<=12;m++) chm.innerHTML += `<option value="${m}">${m}月</option>`; }
+ 
+  // Set report date defaults
+  const todayStr = now.toISOString().split('T')[0];
+  ['r-date','c-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = todayStr;
+  });
+ 
+  // Set appointer name
+  const ra = document.getElementById('r-appointer');
+  if (ra) ra.value = currentUser.name;
+ 
+  // Set error reporter
+  const er = document.getElementById('err-reporter');
+  if (er) er.value = currentUser.name;
+ 
+  // Populate staff selects for closing
+  populateStaffSelects();
+  populateHistStaffSelect();
+ 
+  // Staff form
+  renderStaffForm();
+ 
+  // Team member checkboxes
+  renderTeamMemberCheckboxes();
+ 
+  // Textarea counters
+  document.getElementById('c-apo-comment').addEventListener('input', function() {
+    document.getElementById('c-apo-count').textContent = this.value.length + '文字';
+  });
+  document.getElementById('c-clo-comment').addEventListener('input', function() {
+    document.getElementById('c-clo-count').textContent = this.value.length + '文字';
+  });
+ 
+  navigate('timeline');
+  generateStars();
+ 
+  // Set closing hist year
+  const chy = document.getElementById('closing-hist-year');
+  if(chy){ chy.innerHTML=''; for(let y=cy-2;y<=cy+1;y++) chy.innerHTML+=`<option value="${y}" ${y===cy?'selected':''}>${y}年</option>`; }
+}
+ 
+function generateStars() {
+  const bg = document.getElementById('stars-bg');
+  if (!bg) return;
+  let html = '';
+  for (let i = 0; i < 150; i++) {
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const s = Math.random() * 2.5 + 0.5;
+    const d = (Math.random() * 4 + 2).toFixed(1);
+    const delay = (Math.random() * 5).toFixed(1);
+    html += `<div class="star" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;--d:${d}s;--delay:${delay}s;opacity:${Math.random()*0.5+0.2}"></div>`;
+  }
+  bg.innerHTML += html;
+}
+ 
+// ===== NAVIGATION =====
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-'+page);
+  if (pg) pg.classList.add('active');
+  const ni = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (ni) ni.classList.add('active');
+  closeSidebar();
+ 
+  // Render pages
+  if (page === 'timeline') renderTimeline();
+  if (page === 'overall') renderOverall();
+  if (page === 'ranking-individual') renderRankingIndividual();
+  if (page === 'ranking-team') renderRankingTeam();
+  if (page === 'profile') renderProfile(currentUser.id);
+  if (page === 'report') {
+    renderAppointHistory();
+    renderClosingHistory();
+    populateStaffSelects();
+  }
+  if (page === 'history') { populateHistStaffSelect(); renderHistory(); }
+  if (page === 'staff-roster') { renderStaffForm(); renderStaffRoster(); }
+  if (page === 'team-register') { renderTeamMemberCheckboxes(); renderTeamList(); }
+}
+ 
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+ 
+// ===== PERIOD SWITCH =====
+const periodState = { overall: 'month', 'rank-ind': 'month', 'rank-team': 'month' };
+ 
+function switchPeriod(ctx, p, btn) {
+  periodState[ctx] = p;
+  const container = document.getElementById(ctx+'-period-tabs') || document.querySelector(`#page-${ctx === 'overall' ? 'overall' : (ctx === 'rank-ind' ? 'ranking-individual' : 'ranking-team')} .period-tabs`);
+  if (container) container.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+ 
+  const monthWraps = { overall: 'overall-month-select-wrap', 'rank-ind': 'rank-ind-month-select-wrap', 'rank-team': 'rank-team-month-select-wrap' };
+  const w = document.getElementById(monthWraps[ctx]);
+  if (w) w.style.display = p === 'month' ? 'flex' : 'none';
+ 
+  if (ctx === 'overall') renderOverall();
+  if (ctx === 'rank-ind') renderRankingIndividual();
+  if (ctx === 'rank-team') renderRankingTeam();
+}
+ 
+// ===== TIMELINE =====
+function renderTimeline() {
+  const closings = (STORE.get('closing_reports') || []).filter(r => r.result === 'contract' || r.result === 'complete');
+  const sorted = closings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+  const list = document.getElementById('timeline-list');
+  if (!sorted.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--silver);padding:40px;font-size:0.85rem;">まだ契約データがありません</div>';
+    return;
+  }
+  list.innerHTML = sorted.map(r => {
+    const d = new Date(r.date);
+    const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    return `<div class="timeline-item">
+      <div class="timeline-stars">✦ ✦ ✦</div>
+      <div class="timeline-header">🎉 ご契約おめでとうございます！</div>
+      <div class="timeline-info">
+        <span><strong>${dateStr}</strong></span>
+        <span>アポインター名：<strong>${r.appointerName}</strong></span>
+        <span>クローザー名：<strong>${r.closerName}</strong></span>
+        <span>顧客名：<strong>${r.customer}様案件</strong></span>
+      </div>
+      ${r.apoComment ? `<div class="timeline-comment"><strong>${r.commenterName}</strong>から<strong>${r.appointerName}</strong>さんへのコメント：${r.apoComment}</div>` : ''}
+      ${r.cloComment ? `<div class="timeline-comment" style="margin-top:6px;"><strong>${r.commenterName}</strong>から<strong>${r.closerName}</strong>さんへのコメント：${r.cloComment}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+ 
+// ===== PERIOD FILTER =====
+function getFilteredReports(type, ctx) {
+  const p = periodState[ctx] || 'month';
+  const all = STORE.get(type+'_reports') || [];
+  if (p === 'month') {
+    const yearEl = document.getElementById(ctx+'-year') || document.getElementById(ctx.replace('rank-','rank-')+'-year');
+    const monthEl = document.getElementById(ctx+'-month') || document.getElementById(ctx.replace('rank-','rank-')+'-month');
+    const y = yearEl ? parseInt(yearEl.value) : new Date().getFullYear();
+    const m = monthEl ? parseInt(monthEl.value) : new Date().getMonth()+1;
+    return all.filter(r => { const d=new Date(r.date); return d.getFullYear()===y && d.getMonth()+1===m; });
+  } else {
+    const qMap = {q1:[1,2,3],q2:[4,5,6],q3:[7,8,9],q4:[10,11,12]};
+    const months = qMap[p];
+    const yearEl = document.getElementById(ctx+'-year');
+    const y = yearEl ? parseInt(yearEl.value) : new Date().getFullYear();
+    return all.filter(r => { const d=new Date(r.date); return d.getFullYear()===y && months.includes(d.getMonth()+1); });
+  }
+}
+ 
+function getPeriodLabel(ctx) {
+  const p = periodState[ctx] || 'month';
+  const yearEl = document.getElementById(ctx+'-year');
+  const monthEl = document.getElementById(ctx+'-month');
+  const y = yearEl ? yearEl.value : new Date().getFullYear();
+  if (p === 'month') {
+    const m = monthEl ? monthEl.value : new Date().getMonth()+1;
+    return `${y}年${m}月`;
+  }
+  const labels = {q1:'第1クール(1-3月)',q2:'第2クール(4-6月)',q3:'第3クール(7-9月)',q4:'第4クール(10-12月)'};
+  return `${y}年 ${labels[p]}`;
+}
+ 
+// ===== OVERALL =====
+function renderOverall() {
+  const ar = getFilteredReports('appoint', 'overall');
+  const cr = getFilteredReports('closing', 'overall');
+  const period = getPeriodLabel('overall');
+  document.getElementById('overall-heading').textContent = `${period} 全体営業成績`;
+ 
+  const staffs = (STORE.get('staffs')||[]).filter(s=>s.active!==false && s.role!=='admin');
+ 
+  // Aggregate
+  let totalSales = 0;
+  let totalComplete = cr.filter(r=>r.result==='complete').length;
+  let totalDays = 0, totalPinpon=0, totalTaio=0, totalInkick=0, totalDoakick=0, totalTaishougai=0, totalApu=0, totalApo=0;
+  let totalShoudan=0, totalContract=0, totalApoContract=0, totalCloContract=0, totalApoComplete=0, totalCloComplete=0;
+ 
+  ar.forEach(r => {
+    totalDays += r.daytype==='weekday'?0.3:1;
+    totalPinpon += r.pinpon||0; totalTaio += r.taio||0; totalInkick += r.inkick||0;
+    totalDoakick += r.doakick||0; totalTaishougai += r.taishougai||0;
+    totalApu += r.apu||0; totalApo += r.apo||0;
+  });
+  cr.forEach(r => {
+    if (r.result==='contract'||r.result==='complete') {
+      totalContract++;
+      if (r.roleType==='apo'||!r.roleType) totalApoContract++;
+      else totalCloContract++;
+    }
+    if (r.result==='complete') {
+      totalApoComplete++;
+      totalCloComplete++;
+    }
+    totalShoudan += r.meetingCount||1;
+    if (r.result==='contract'||r.result==='complete') {
+      if (r.appointerName!==r.closerName) { totalApoContract++; totalCloContract++; }
+    }
+  });
+ 
+  // Re-calculate properly
+  totalApoContract = cr.filter(r=>(r.result==='contract'||r.result==='complete')).length;
+  totalCloContract = cr.filter(r=>(r.result==='contract'||r.result==='complete')).length;
+  totalApoComplete = cr.filter(r=>r.result==='complete').length;
+  totalCloComplete = cr.filter(r=>r.result==='complete').length;
+  totalContract = cr.filter(r=>r.result==='contract'||r.result==='complete').length;
+  totalShoudan = cr.length;
+ 
+  const pinponCompleteRate = totalPinpon>0 ? Math.round(totalComplete/totalPinpon*100) : 0;
+  const avgPinpon = totalDays>0 ? Math.round(totalPinpon/totalDays) : 0;
+  const cancelRate = totalContract>0 ? Math.round((totalContract-totalComplete)/totalContract*100) : 0;
+  const pinponTaioRate = totalPinpon>0 ? Math.round(totalTaio/totalPinpon*100) : 0;
+  const taioInkickRate = totalTaio>0 ? Math.round(totalInkick/totalTaio*100) : 0;
+  const taioApoRate = totalTaio>0 ? Math.round(totalApo/totalTaio*100) : 0;
+  const apuApoRate = totalApu>0 ? Math.round(totalApo/totalApu*100) : 0;
+  const apoSoudanRate = totalApo>0 ? Math.round(totalShoudan/totalApo*100) : 0;
+  const soudanCompleteRate = totalShoudan>0 ? Math.round(totalComplete/totalShoudan*100) : 0;
+ 
+  const content = document.getElementById('overall-content');
+  content.innerHTML = `
+    <div class="grid-2" style="margin-bottom:15px;">
+      <div class="stat-card large gold">
+        <div class="stat-label">総完工数</div>
+        <div class="stat-value">${totalComplete}<span class="stat-unit">件</span></div>
+      </div>
+      <div class="stat-card large" style="background:linear-gradient(135deg,rgba(74,158,255,0.15),rgba(13,21,37,0.95));">
+        <div class="stat-label">総ピンポン完工率</div>
+        <div class="stat-value" style="color:var(--success)">${pinponCompleteRate}<span class="stat-unit">%</span></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:15px;">
+      <div class="stat-card large">
+        <div class="stat-label">1日平均ピンポン数</div>
+        <div class="stat-value">${avgPinpon}<span class="stat-unit">件</span></div>
+      </div>
+      <div class="stat-card large ${cancelRate>25?'cancel-rate-card':''}">
+        <div class="stat-label">キャンセル率</div>
+        <div class="stat-value" style="color:${cancelRate>25?'var(--danger)':'var(--accent)'}">${cancelRate}<span class="stat-unit">%</span></div>
+        <div style="font-size:0.65rem;color:var(--silver);margin-top:4px;">⚠ キャンセル率25%以下を目標に</div>
+      </div>
+    </div>
+    <div class="grid-5" style="margin-bottom:15px;">
+      <div class="stat-card"><div class="stat-label">総出勤数</div><div class="stat-value" style="font-size:1.3rem">${Math.round(totalDays)}<span class="stat-unit">日</span></div></div>
+      <div class="stat-card"><div class="stat-label">総ピンポン数</div><div class="stat-value" style="font-size:1.3rem">${totalPinpon}</div></div>
+      <div class="stat-card"><div class="stat-label">総対応数</div><div class="stat-value" style="font-size:1.3rem">${totalTaio}</div></div>
+      <div class="stat-card"><div class="stat-label">総インキック数</div><div class="stat-value" style="font-size:1.3rem">${totalInkick}</div></div>
+      <div class="stat-card"><div class="stat-label">総ドアキック数</div><div class="stat-value" style="font-size:1.3rem">${totalDoakick}</div></div>
+      <div class="stat-card"><div class="stat-label">総対象外数</div><div class="stat-value" style="font-size:1.3rem">${totalTaishougai}</div></div>
+      <div class="stat-card"><div class="stat-label">総アプ数</div><div class="stat-value" style="font-size:1.3rem">${totalApu}</div></div>
+      <div class="stat-card"><div class="stat-label">総アポ数</div><div class="stat-value" style="font-size:1.3rem">${totalApo}</div></div>
+      <div class="stat-card"><div class="stat-label">総商談数</div><div class="stat-value" style="font-size:1.3rem">${totalShoudan}</div></div>
+      <div class="stat-card"><div class="stat-label">総契約数</div><div class="stat-value" style="font-size:1.3rem">${totalContract}</div></div>
+    </div>
+    <div class="rate-grid" style="margin-bottom:20px;">
+      <div class="rate-item"><div class="rate-label">ピンポン対応率</div><div class="rate-value">${pinponTaioRate}%</div></div>
+      <div class="rate-item"><div class="rate-label">対応インキック率</div><div class="rate-value">${taioInkickRate}%</div></div>
+      <div class="rate-item"><div class="rate-label">対応アポ率</div><div class="rate-value">${taioApoRate}%</div></div>
+      <div class="rate-item"><div class="rate-label">アプアポ率</div><div class="rate-value">${apuApoRate}%</div></div>
+      <div class="rate-item"><div class="rate-label">アポ商談率</div><div class="rate-value">${apoSoudanRate}%</div></div>
+      <div class="rate-item"><div class="rate-label">商談完工率</div><div class="rate-value">${soudanCompleteRate}%</div></div>
+    </div>
+    <div class="section-title">営業スタッフ別成績表一覧</div>
+    <div class="table-wrap">
+      <table class="staff-table">
+        <thead><tr>
+          <th>スタッフ</th><th>出勤数</th><th>ピンポン</th><th>対応</th><th>インキック</th>
+          <th>ドアキック</th><th>対象外</th><th>アプ</th><th>アポ</th><th>商談</th>
+          <th>アポ契約</th><th>クロ契約</th><th>アポ完工</th><th>クロ完工</th>
+        </tr></thead>
+        <tbody>
+          ${getActiveStaffs().sort((a,b)=>a.furigana.localeCompare(b.furigana,'ja')).map(s => {
+            const sr = ar.filter(r=>r.staffId===s.id);
+            const scr = cr.filter(r=>r.appointerId===s.id||r.closerId===s.id);
+            const days = sr.reduce((acc,r)=>acc+(r.daytype==='weekday'?0.3:1),0);
+            const pp=sr.reduce((a,r)=>a+(r.pinpon||0),0);
+            const ta=sr.reduce((a,r)=>a+(r.taio||0),0);
+            const ik=sr.reduce((a,r)=>a+(r.inkick||0),0);
+            const dk=sr.reduce((a,r)=>a+(r.doakick||0),0);
+            const tg=sr.reduce((a,r)=>a+(r.taishougai||0),0);
+            const ap=sr.reduce((a,r)=>a+(r.apu||0),0);
+            const ao=sr.reduce((a,r)=>a+(r.apo||0),0);
+            const shd = cr.filter(r=>r.closerId===s.id).length;
+            const apoC = cr.filter(r=>r.appointerId===s.id&&(r.result==='contract'||r.result==='complete')).length;
+            const cloC = cr.filter(r=>r.closerId===s.id&&(r.result==='contract'||r.result==='complete')).length;
+            const apoF = cr.filter(r=>r.appointerId===s.id&&r.result==='complete').length;
+            const cloF = cr.filter(r=>r.closerId===s.id&&r.result==='complete').length;
+            return `<tr><td><div class="staff-link" onclick="navigate('profile');setTimeout(()=>renderProfile('${s.id}'),50)">
+              <div class="mini-avatar">${s.photo?`<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover;">`:s.name.charAt(0)}</div>
+              <span class="staff-name-text">${s.name}</span></div></td>
+              <td>${Math.round(days)}</td><td>${pp}</td><td>${ta}</td><td>${ik}</td><td>${dk}</td><td>${tg}</td>
+              <td>${ap}</td><td>${ao}</td><td>${shd}</td><td>${apoC}</td><td>${cloC}</td><td>${apoF}</td><td>${cloF}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+ 
+function getActiveStaffs() {
+  return (STORE.get('staffs')||[]).filter(s=>s.active!==false&&s.role!=='admin');
+}
+ 
+// ===== RANKING =====
+const rankState = { ind: 'apo-complete', team: 'apo-complete' };
+ 
+function switchRankTab(ctx, tab, btn) {
+  rankState[ctx] = tab;
+  // Remove active from all rank-tab siblings in same context
+  const page = ctx === 'ind' ? 'ranking-individual' : 'ranking-team';
+  document.querySelectorAll(`#page-${page} .rank-tab`).forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  if (ctx === 'ind') renderRankingIndividual();
+  else renderRankingTeam();
+}
+ 
+function getRankLabel(tab) {
+  const labels = {
+    'apo-complete':'アポイント 完工数ランキング',
+    'apo-meetings':'アポイント 商談数ランキング',
+    'apo-count':'アポ数ランキング',
+    'pinpon-count':'ピンポン数ランキング',
+    'pinpon-rate':'ピンポン完工率ランキング',
+    'clo-complete':'クロージング 完工数ランキング',
+    'clo-rate':'クロージング 商談完工率ランキング',
+    'cancel-rate':'キャンセル率ランキング（低順）',
+  };
+  return labels[tab] || tab;
+}
+ 
+function getStaffRankValue(s, tab, ar, cr) {
+  switch(tab) {
+    case 'apo-complete': return cr.filter(r=>r.appointerId===s.id&&r.result==='complete').length;
+    case 'apo-meetings': return cr.filter(r=>r.appointerId===s.id).length;
+    case 'apo-count': return ar.filter(r=>r.staffId===s.id).reduce((a,r)=>a+(r.apo||0),0);
+    case 'pinpon-count': return ar.filter(r=>r.staffId===s.id).reduce((a,r)=>a+(r.pinpon||0),0);
+    case 'pinpon-rate': {
+      const pp=ar.filter(r=>r.staffId===s.id).reduce((a,r)=>a+(r.pinpon||0),0);
+      const fc=cr.filter(r=>r.appointerId===s.id&&r.result==='complete').length;
+      return pp>0?Math.round(fc/pp*100):0;
+    }
+    case 'clo-complete': return cr.filter(r=>r.closerId===s.id&&r.result==='complete').length;
+    case 'clo-rate': {
+      const shd=cr.filter(r=>r.closerId===s.id).length;
+      const fc=cr.filter(r=>r.closerId===s.id&&r.result==='complete').length;
+      return shd>0?Math.round(fc/shd*100):0;
+    }
+    case 'cancel-rate': {
+      const cont=cr.filter(r=>r.closerId===s.id&&(r.result==='contract'||r.result==='complete')).length;
+      const comp=cr.filter(r=>r.closerId===s.id&&r.result==='complete').length;
+      return cont>0?Math.round((cont-comp)/cont*100):0;
+    }
+    default: return 0;
+  }
+}
+ 
+function getRankUnit(tab) {
+  return ['pinpon-rate','clo-rate','cancel-rate'].includes(tab)?'%':'件';
+}
+ 
+function renderRankingIndividual() {
+  const tab = rankState.ind;
+  const ar = getFilteredReports('appoint','rank-ind');
+  const cr = getFilteredReports('closing','rank-ind');
+  const period = getPeriodLabel('rank-ind');
+  document.getElementById('rank-ind-heading').textContent = `${period} ${getRankLabel(tab)}`;
+ 
+  const staffs = getActiveStaffs();
+  const ranked = staffs.map(s => ({...s, val: getStaffRankValue(s, tab, ar, cr)}));
+ 
+  if (tab === 'cancel-rate') ranked.sort((a,b)=>a.val-b.val);
+  else ranked.sort((a,b)=>b.val-a.val);
+ 
+  document.getElementById('rank-ind-content').innerHTML = renderRankingHTML(ranked, tab);
+}
+ 
+function renderRankingTeam() {
+  const tab = rankState.team;
+  const ar = getFilteredReports('appoint','rank-team');
+  const cr = getFilteredReports('closing','rank-team');
+  const period = getPeriodLabel('rank-team');
+  document.getElementById('rank-team-heading').textContent = `${period} ${getRankLabel(tab)}`;
+ 
+  const teams = STORE.get('teams') || [];
+  if (!teams.length) {
+    document.getElementById('rank-team-content').innerHTML = '<div style="text-align:center;color:var(--silver);padding:40px;font-size:0.85rem;">チームが登録されていません</div>';
+    return;
+  }
+ 
+  const ranked = teams.map(t => {
+    const members = (STORE.get('staffs')||[]).filter(s=>s.team===t.id&&s.active!==false);
+    let val = 0;
+    switch(tab) {
+      case 'apo-complete': val = cr.filter(r=>members.some(m=>m.id===r.appointerId)&&r.result==='complete').length; break;
+      case 'apo-meetings': val = cr.filter(r=>members.some(m=>m.id===r.appointerId)).length; break;
+      case 'apo-count': val = ar.filter(r=>members.some(m=>m.id===r.staffId)).reduce((a,r)=>a+(r.apo||0),0); break;
+      case 'pinpon-count': val = ar.filter(r=>members.some(m=>m.id===r.staffId)).reduce((a,r)=>a+(r.pinpon||0),0); break;
+      case 'pinpon-rate': {
+        const pp=ar.filter(r=>members.some(m=>m.id===r.staffId)).reduce((a,r)=>a+(r.pinpon||0),0);
+        const fc=cr.filter(r=>members.some(m=>m.id===r.appointerId)&&r.result==='complete').length;
+        val=pp>0?Math.round(fc/pp*100):0; break;
+      }
+      case 'clo-complete': val = cr.filter(r=>members.some(m=>m.id===r.closerId)&&r.result==='complete').length; break;
+      case 'clo-rate': {
+        const shd=cr.filter(r=>members.some(m=>m.id===r.closerId)).length;
+        const fc=cr.filter(r=>members.some(m=>m.id===r.closerId)&&r.result==='complete').length;
+        val=shd>0?Math.round(fc/shd*100):0; break;
+      }
+      case 'cancel-rate': {
+        const cont=cr.filter(r=>members.some(m=>m.id===r.closerId)&&(r.result==='contract'||r.result==='complete')).length;
+        const comp=cr.filter(r=>members.some(m=>m.id===r.closerId)&&r.result==='complete').length;
+        val=cont>0?Math.round((cont-comp)/cont*100):0; break;
+      }
+    }
+    return { id: t.id, name: t.name, val, isTeam: true, members };
+  });
+ 
+  if (tab==='cancel-rate') ranked.sort((a,b)=>a.val-b.val);
+  else ranked.sort((a,b)=>b.val-a.val);
+ 
+  document.getElementById('rank-team-content').innerHTML = renderRankingHTML(ranked, tab, true);
+}
+ 
+function renderRankingHTML(ranked, tab, isTeam=false) {
+  const unit = getRankUnit(tab);
+  if (!ranked.length) return '<div style="text-align:center;color:var(--silver);padding:40px;font-size:0.85rem;">データがありません</div>';
+ 
+  const rankIcons = ['👑','🥈','🥉'];
+  const rankColors = ['var(--gold2)','#aabcd4','#b46e3c'];
+  const top3 = ranked.slice(0,3);
+  const rest = ranked.slice(3);
+ 
+  // Podium for top 3
+  const podiumOrder = top3.length>=2 ? [top3[1], top3[0], top3[2]].filter(Boolean) : top3;
+  const podiumPositions = top3.length>=2 ? [2,1,3] : [1,2,3];
+ 
+  let podiumHTML = '';
+  if (top3.length) {
+    podiumHTML = `<div class="ranking-podium">`;
+    podiumOrder.forEach((item, idx) => {
+      const rank = top3.indexOf(item)+1;
+      const crown = rank===1?'👑':rank===2?'🥈':'🥉';
+      const initials = isTeam ? item.name.charAt(0) : item.name.charAt(0);
+      podiumHTML += `<div class="podium-item podium-rank-${rank}" onclick="${!isTeam?`navigate('profile');setTimeout(()=>renderProfile('${item.id}'),50)`:''}" style="cursor:${!isTeam?'pointer':'default'}">
+        <div class="podium-crown">${crown}</div>
+        <div class="podium-avatar">${item.photo?`<img src="${item.photo}" style="width:100%;height:100%;object-fit:cover;">`:`<span>${initials}</span>`}</div>
+        <div class="podium-name">${item.name}</div>
+        <div class="podium-value">${item.val}${unit}</div>
+        <div class="podium-block">${rank}</div>
+      </div>`;
+    });
+    podiumHTML += `</div>`;
+  }
+ 
+  let listHTML = ranked.map((item, idx) => {
+    const rank = idx+1;
+    const cls = rank===1?'top1':rank===2?'top2':rank===3?'top3':'';
+    const rankDisplay = rank<=3 ? `<span style="color:${rankColors[rank-1]};font-size:1.3rem;">${rank}位</span>` : `<span class="rank-badge rank-other">${rank}位</span>`;
+    const initials = item.name.charAt(0);
+    return `<div class="ranking-list-item ${cls}" onclick="${!isTeam?`navigate('profile');setTimeout(()=>renderProfile('${item.id}'),50)`:''}" style="cursor:${!isTeam?'pointer':'default'}">
+      ${rankDisplay}
+      <div class="rank-avatar">${item.photo?`<img src="${item.photo}" style="width:100%;height:100%;object-fit:cover;">`:`<span>${initials}</span>`}</div>
+      <div class="rank-name">${item.name}</div>
+      <div><span class="rank-value">${item.val}</span><span class="rank-unit">${unit}</span></div>
+    </div>`;
+  }).join('');
+ 
+  return podiumHTML + `<div style="margin-top:20px;">${listHTML}</div>`;
+}
+ 
+// ===== PROFILE =====
+let viewingProfileId = null;
+function renderProfile(staffId) {
+  viewingProfileId = staffId || currentUser.id;
+  const staffs = STORE.get('staffs') || [];
+  const s = staffs.find(st=>st.id===viewingProfileId) || currentUser;
+  const isOwn = s.id === currentUser.id;
+  const isAdmin = currentUser.role === 'admin';
+  const canEditInfo = isAdmin;
+  const canEditSelf = isOwn;
+ 
+  // Age & birthday
+  const bd = s.birthday ? new Date(s.birthday) : null;
+  const now = new Date();
+  let age = '';
+  let birthdayDisplay = '';
+  if (bd) {
+    age = now.getFullYear() - bd.getFullYear();
+    const thisYearBd = new Date(now.getFullYear(), bd.getMonth(), bd.getDate());
+    if (now < thisYearBd) age--;
+    birthdayDisplay = `${bd.getMonth()+1}月${bd.getDate()}日`;
+  }
+ 
+  // Activity period
+  let activity = '';
+  if (s.joinDate) {
+    const jd = new Date(s.joinDate);
+    const diff = now - jd;
+    const months = Math.floor(diff/1000/60/60/24/30);
+    const years = Math.floor(months/12);
+    const remainMonths = months%12;
+    activity = years>0 ? `${years}年${remainMonths}ヶ月目` : `${remainMonths}ヶ月目`;
+  }
+ 
+  const ar = (STORE.get('appoint_reports')||[]).filter(r=>r.staffId===s.id);
+  const cr = (STORE.get('closing_reports')||[]);
+ 
+  const content = document.getElementById('profile-content');
+  content.innerHTML = `
+    <div class="profile-header">
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar" id="prof-avatar">
+          ${s.photo?`<img src="${s.photo}" id="prof-avatar-img">`:`<span>${s.name.charAt(0)}</span>`}
+        </div>
+        ${canEditSelf?`<div class="avatar-edit" onclick="editProfilePhoto()">✏️</div>`:''}
+      </div>
+      <div class="profile-info" style="flex:1">
+        <h2>${s.name}</h2>
+        <div class="furigana">${s.furigana||''}</div>
+        <div class="profile-tags">
+          ${s.position?`<span class="profile-tag gold">${s.position}</span>`:''}
+          ${s.team?`<span class="profile-tag">${getTeamName(s.team)}</span>`:''}
+          ${s.gender?`<span class="profile-tag">${s.gender==='male'?'男性':'女性'}</span>`:''}
+          ${bd?`<span class="profile-tag">${age}歳 (${birthdayDisplay})</span>`:''}
+          ${activity?`<span class="profile-tag">活動${activity}</span>`:''}
+        </div>
+        ${canEditSelf?`
+          <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
+            <input type="text" id="quote-input" value="${s.quote||''}" maxlength="15" placeholder="一言（15文字まで）" style="max-width:220px;font-size:0.82rem;">
+            <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 12px;" onclick="saveQuote()">保存</button>
+          </div>
+        `:`<div class="profile-quote">${s.quote?'"'+s.quote+'"':''}</div>`}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
+      <div class="section-title" style="margin:0;">${s.name}さんの営業成績</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="prof-date-from" onchange="renderProfileStats('${s.id}')">
+        <span style="font-size:0.8rem;color:var(--silver);">〜</span>
+        <input type="date" id="prof-date-to" onchange="renderProfileStats('${s.id}')">
+      </div>
+    </div>
+    <div id="prof-stats"></div>
+  `;
+ 
+  // Set default date range (current month)
+  const y = now.getFullYear(), m = now.getMonth()+1;
+  document.getElementById('prof-date-from').value = `${y}-${String(m).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  document.getElementById('prof-date-to').value = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+ 
+  renderProfileStats(s.id);
+}
+ 
+function renderProfileStats(staffId) {
+  const from = document.getElementById('prof-date-from')?.value;
+  const to = document.getElementById('prof-date-to')?.value;
+  const ar = (STORE.get('appoint_reports')||[]).filter(r => {
+    if (r.staffId!==staffId) return false;
+    if (from && r.date < from) return false;
+    if (to && r.date > to) return false;
+    return true;
+  });
+  const cr = (STORE.get('closing_reports')||[]).filter(r => {
+    if (r.appointerId!==staffId && r.closerId!==staffId) return false;
+    if (from && r.date < from) return false;
+    if (to && r.date > to) return false;
+    return true;
+  });
+ 
+  const days=ar.reduce((a,r)=>a+(r.daytype==='weekday'?0.3:1),0);
+  const pp=ar.reduce((a,r)=>a+(r.pinpon||0),0);
+  const ta=ar.reduce((a,r)=>a+(r.taio||0),0);
+  const ik=ar.reduce((a,r)=>a+(r.inkick||0),0);
+  const dk=ar.reduce((a,r)=>a+(r.doakick||0),0);
+  const tg=ar.reduce((a,r)=>a+(r.taishougai||0),0);
+  const ap=ar.reduce((a,r)=>a+(r.apu||0),0);
+  const ao=ar.reduce((a,r)=>a+(r.apo||0),0);
+  const apoContracts = cr.filter(r=>r.appointerId===staffId&&(r.result==='contract'||r.result==='complete')).length;
+  const apoComplete = cr.filter(r=>r.appointerId===staffId&&r.result==='complete').length;
+  const cloShoudan = cr.filter(r=>r.closerId===staffId).length;
+  const cloContracts = cr.filter(r=>r.closerId===staffId&&(r.result==='contract'||r.result==='complete')).length;
+  const cloComplete = cr.filter(r=>r.closerId===staffId&&r.result==='complete').length;
+ 
+  const pinponCompleteRate = pp>0?Math.round(apoComplete/pp*100):0;
+  const avgPinpon = days>0?Math.round(pp/days):0;
+  const taioRate = pp>0?Math.round(ta/pp*100):0;
+  const apoRate = ta>0?Math.round(ao/ta*100):0;
+  const apuApoRate = ap>0?Math.round(ao/ap*100):0;
+  const apoShoudanRate = ao>0?Math.round(cloShoudan/ao*100):0;
+  const shoudanCompleteRate = cloShoudan>0?Math.round(cloComplete/cloShoudan*100):0;
+  const cloCompleteRate = cloShoudan>0?Math.round(cloComplete/cloShoudan*100):0;
+  const cancelRate = cloContracts>0?Math.round((cloContracts-cloComplete)/cloContracts*100):0;
+ 
+  document.getElementById('prof-stats').innerHTML = `
+    <div class="card" style="margin-bottom:15px;">
+      <div class="section-title">アポ成績</div>
+      <div class="grid-5" style="margin-bottom:15px;">
+        <div class="stat-card"><div class="stat-label">出勤数</div><div class="stat-value" style="font-size:1.2rem">${Math.round(days)}<span class="stat-unit">日</span></div></div>
+        <div class="stat-card"><div class="stat-label">ピンポン</div><div class="stat-value" style="font-size:1.2rem">${pp}</div></div>
+        <div class="stat-card"><div class="stat-label">対応</div><div class="stat-value" style="font-size:1.2rem">${ta}</div></div>
+        <div class="stat-card"><div class="stat-label">インキック</div><div class="stat-value" style="font-size:1.2rem">${ik}</div></div>
+        <div class="stat-card"><div class="stat-label">ドアキック</div><div class="stat-value" style="font-size:1.2rem">${dk}</div></div>
+        <div class="stat-card"><div class="stat-label">対象外</div><div class="stat-value" style="font-size:1.2rem">${tg}</div></div>
+        <div class="stat-card"><div class="stat-label">アプ</div><div class="stat-value" style="font-size:1.2rem">${ap}</div></div>
+        <div class="stat-card"><div class="stat-label">アポ</div><div class="stat-value" style="font-size:1.2rem">${ao}</div></div>
+        <div class="stat-card"><div class="stat-label">アポ契約</div><div class="stat-value" style="font-size:1.2rem">${apoContracts}</div></div>
+        <div class="stat-card"><div class="stat-label">アポ完工</div><div class="stat-value" style="font-size:1.2rem">${apoComplete}</div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:15px;">
+        <div class="stat-card large gold">
+          <div class="stat-label">ピンポン完工率</div>
+          <div class="stat-value">${pinponCompleteRate}<span class="stat-unit">%</span></div>
+        </div>
+        <div class="stat-card large">
+          <div class="stat-label">1日平均ピンポン数</div>
+          <div class="stat-value">${avgPinpon}<span class="stat-unit">件</span></div>
+        </div>
+      </div>
+      <div class="rate-grid">
+        <div class="rate-item"><div class="rate-label">ピンポン対応率</div><div class="rate-value">${taioRate}%</div></div>
+        <div class="rate-item"><div class="rate-label">対応アポ率</div><div class="rate-value">${apoRate}%</div></div>
+        <div class="rate-item"><div class="rate-label">アプアポ率</div><div class="rate-value">${apuApoRate}%</div></div>
+        <div class="rate-item"><div class="rate-label">アポ商談率</div><div class="rate-value">${apoShoudanRate}%</div></div>
+        <div class="rate-item"><div class="rate-label">商談完工率</div><div class="rate-value">${shoudanCompleteRate}%</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">クロ成績</div>
+      <div class="grid-3">
+        <div class="stat-card"><div class="stat-label">クロ商談数</div><div class="stat-value" style="font-size:1.3rem">${cloShoudan}</div></div>
+        <div class="stat-card"><div class="stat-label">クロ契約数</div><div class="stat-value" style="font-size:1.3rem">${cloContracts}</div></div>
+        <div class="stat-card"><div class="stat-label">クロ完工数</div><div class="stat-value" style="font-size:1.3rem">${cloComplete}</div></div>
+        <div class="stat-card gold"><div class="stat-label">商談完工率</div><div class="stat-value" style="font-size:1.3rem">${cloCompleteRate}%</div></div>
+        <div class="stat-card ${cancelRate>25?'cancel-rate-card':''}">
+          <div class="stat-label">キャンセル率</div>
+          <div class="stat-value" style="font-size:1.3rem;color:${cancelRate>25?'var(--danger)':'var(--accent)'}">${cancelRate}%</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+ 
+function saveQuote() {
+  const val = document.getElementById('quote-input')?.value || '';
+  const staffs = STORE.get('staffs') || [];
+  const idx = staffs.findIndex(s=>s.id===currentUser.id);
+  if (idx>=0) { staffs[idx].quote = val; STORE.set('staffs', staffs); currentUser.quote = val; }
+  showToast('一言を保存しました', 'success');
+}
+ 
+function editProfilePhoto() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const data = ev.target.result;
+      const staffs = STORE.get('staffs')||[];
+      const idx = staffs.findIndex(s=>s.id===currentUser.id);
+      if (idx>=0) { staffs[idx].photo=data; STORE.set('staffs',staffs); currentUser.photo=data; }
+      renderProfile(currentUser.id);
+      showToast('プロフィール画像を更新しました','success');
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+ 
+function getTeamName(teamId) {
+  const teams = STORE.get('teams')||[];
+  const t = teams.find(t=>t.id===teamId);
+  return t?t.name:'';
+}
+ 
+// ===== REPORT =====
+let editingReportId = null;
+let editingClosingId = null;
+ 
+function switchReportTab(tab, btn) {
+  document.querySelectorAll('.report-tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('report-appoint-section').style.display = tab==='appoint'?'block':'none';
+  document.getElementById('report-closing-section').style.display = tab==='closing'?'block':'none';
+}
+ 
+function submitAppointReport() {
+  const date = document.getElementById('r-date').value;
+  const daytype = document.getElementById('r-daytype').value;
+  const pinpon = parseInt(document.getElementById('r-pinpon').value)||0;
+  const taio = parseInt(document.getElementById('r-taio').value)||0;
+  const inkick = parseInt(document.getElementById('r-inkick').value)||0;
+  const doakick = parseInt(document.getElementById('r-doakick').value)||0;
+  const taishougai = parseInt(document.getElementById('r-taishougai').value)||0;
+  const apu = parseInt(document.getElementById('r-apu').value)||0;
+  const apo = parseInt(document.getElementById('r-apo').value)||0;
+ 
+  if (!date) { showToast('日時を選択してください','error'); return; }
+ 
+  const reports = STORE.get('appoint_reports')||[];
+  if (editingReportId) {
+    const idx = reports.findIndex(r=>r.id===editingReportId);
+    if (idx>=0) reports[idx] = {...reports[idx], date, daytype, pinpon, taio, inkick, doakick, taishougai, apu, apo};
+    STORE.set('appoint_reports', reports);
+    editingReportId = null;
+    document.getElementById('r-cancel-edit').style.display = 'none';
+    showToast('アポイント報告を更新しました','success');
+  } else {
+    reports.push({ id: genId(), staffId: currentUser.id, staffName: currentUser.name, date, daytype, pinpon, taio, inkick, doakick, taishougai, apu, apo, createdAt: new Date().toISOString() });
+    STORE.set('appoint_reports', reports);
+    showToast('アポイント報告を送信しました','success');
+  }
+  resetAppointForm();
+  renderAppointHistory();
+}
+ 
+function resetAppointForm() {
+  ['r-pinpon','r-taio','r-inkick','r-doakick','r-taishougai','r-apu','r-apo'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='0';
+  });
+  document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('r-daytype').value = 'normal';
+}
+ 
+function cancelEdit() {
+  editingReportId = null;
+  resetAppointForm();
+  document.getElementById('r-cancel-edit').style.display = 'none';
+}
+ 
+function renderAppointHistory() {
+  const reports = (STORE.get('appoint_reports')||[]).filter(r=>r.staffId===currentUser.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  const list = document.getElementById('appoint-history-list');
+  if (!list) return;
+  if (!reports.length) { list.innerHTML = '<div style="color:var(--silver);font-size:0.8rem;padding:10px;">履歴がありません</div>'; return; }
+  list.innerHTML = reports.map(r => {
+    const d = new Date(r.date);
+    return `<div class="history-item">
+      <div class="history-date">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${r.daytype==='weekday'?'平日対応':'通常対応'})</div>
+      <div class="history-stats">
+        <div class="history-stat"><span>ピンポン</span><strong>${r.pinpon}</strong></div>
+        <div class="history-stat"><span>対応</span><strong>${r.taio}</strong></div>
+        <div class="history-stat"><span>インキック</span><strong>${r.inkick}</strong></div>
+        <div class="history-stat"><span>ドアキック</span><strong>${r.doakick}</strong></div>
+        <div class="history-stat"><span>アプ</span><strong>${r.apu}</strong></div>
+        <div class="history-stat"><span>アポ</span><strong>${r.apo}</strong></div>
+      </div>
+      <button class="btn-edit-small" onclick="editAppointReport('${r.id}')">編集</button>
+    </div>`;
+  }).join('');
+}
+ 
+function editAppointReport(id) {
+  const reports = STORE.get('appoint_reports')||[];
+  const r = reports.find(rep=>rep.id===id); if (!r) return;
+  editingReportId = id;
+  document.getElementById('r-date').value = r.date;
+  document.getElementById('r-daytype').value = r.daytype;
+  document.getElementById('r-pinpon').value = r.pinpon||0;
+  document.getElementById('r-taio').value = r.taio||0;
+  document.getElementById('r-inkick').value = r.inkick||0;
+  document.getElementById('r-doakick').value = r.doakick||0;
+  document.getElementById('r-taishougai').value = r.taishougai||0;
+  document.getElementById('r-apu').value = r.apu||0;
+  document.getElementById('r-apo').value = r.apo||0;
+  document.getElementById('r-cancel-edit').style.display = 'inline-block';
+  document.querySelector('#page-report .card').scrollIntoView({behavior:'smooth'});
+}
+ 
+function populateStaffSelects() {
+  const staffs = getActiveStaffs();
+  const allStaffs = (STORE.get('staffs')||[]).filter(s=>s.active!==false);
+  ['c-appointer','c-closer','c-commenter'].forEach(id => {
+    const sel = document.getElementById(id); if (!sel) return;
+    sel.innerHTML = staffs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  });
+}
+ 
+function toggleCloserComment() {
+  // Can keep closer comment optional if closer = commenter - handled on submit
+}
+ 
+function submitClosingReport() {
+  const date = document.getElementById('c-date').value;
+  const appointerId = document.getElementById('c-appointer').value;
+  const closerId = document.getElementById('c-closer').value;
+  const commenterId = document.getElementById('c-commenter').value;
+  const customer = document.getElementById('c-customer').value.trim();
+  const result = document.getElementById('c-result').value;
+  const apoComment = document.getElementById('c-apo-comment').value.trim();
+  const cloComment = document.getElementById('c-clo-comment').value.trim();
+ 
+  if (!date || !customer) { showToast('必須項目を入力してください','error'); return; }
+  if (apoComment.length < 50 || apoComment.length > 100) { showToast('アポインターへのコメントは50〜100文字で入力してください','error'); return; }
+  const isSelfCloser = closerId === commenterId;
+  if (!isSelfCloser && cloComment && (cloComment.length < 50 || cloComment.length > 100)) {
+    showToast('クローザーへのコメントは50〜100文字または空欄にしてください','error'); return;
+  }
+  if (!isSelfCloser && !cloComment) {} // OK
+ 
+  const staffs = STORE.get('staffs')||[];
+  const appointer = staffs.find(s=>s.id===appointerId);
+  const closer = staffs.find(s=>s.id===closerId);
+  const commenter = staffs.find(s=>s.id===commenterId);
+ 
+  const report = {
+    id: editingClosingId || genId(),
+    date, appointerId, closerId, commenterId,
+    appointerName: appointer?.name||'',
+    closerName: closer?.name||'',
+    commenterName: commenter?.name||'',
+    customer, result, apoComment, cloComment,
+    createdAt: new Date().toISOString()
+  };
+ 
+  const reports = STORE.get('closing_reports')||[];
+  if (editingClosingId) {
+    const idx = reports.findIndex(r=>r.id===editingClosingId);
+    if (idx>=0) reports[idx] = report;
+  } else {
+    reports.push(report);
+  }
+  STORE.set('closing_reports', reports);
+  editingClosingId = null;
+  document.getElementById('c-cancel-edit').style.display = 'none';
+ 
+  // Notification for contract
+  if (result === 'contract' || result === 'complete') {
+    showNotification(`🎉 ご契約！\nアポ：${appointer?.name} / クロ：${closer?.name}\n顧客：${customer}様`);
+  }
+ 
+  showToast('クロージング報告を送信しました','success');
+  resetClosingForm();
+  renderClosingHistory();
+  renderTimeline();
+}
+ 
+function resetClosingForm() {
+  document.getElementById('c-customer').value = '';
+  document.getElementById('c-apo-comment').value = '';
+  document.getElementById('c-clo-comment').value = '';
+  document.getElementById('c-result').value = 'lost';
+  document.getElementById('c-apo-count').textContent = '0文字';
+  document.getElementById('c-clo-count').textContent = '0文字';
+}
+ 
+function cancelClosingEdit() {
+  editingClosingId = null;
+  resetClosingForm();
+  document.getElementById('c-cancel-edit').style.display = 'none';
+}
+ 
+function renderClosingHistory() {
+  const yearEl = document.getElementById('closing-hist-year');
+  const monthEl = document.getElementById('closing-hist-month');
+  if (!yearEl || !monthEl) return;
+  const y = parseInt(yearEl.value);
+  const m = monthEl.value;
+  let reports = STORE.get('closing_reports')||[];
+  reports = reports.filter(r => {
+    const d = new Date(r.date);
+    if (d.getFullYear()!==y) return false;
+    if (m!=='all' && d.getMonth()+1!==parseInt(m)) return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+ 
+  const list = document.getElementById('closing-history-list');
+  if (!list) return;
+  if (!reports.length) { list.innerHTML = '<div style="color:var(--silver);font-size:0.8rem;padding:10px;">履歴がありません</div>'; return; }
+  list.innerHTML = reports.map(r => {
+    const d = new Date(r.date);
+    const resultMap = {lost:'失注',contract:'契約',complete:'完工'};
+    const badgeCls = {lost:'badge-lost',contract:'badge-contract',complete:'badge-complete'};
+    return `<div class="history-item">
+      <div class="history-date">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日</div>
+      <div class="history-stats" style="flex-wrap:wrap;">
+        <div class="history-stat"><span>アポ</span><strong>${r.appointerName}</strong></div>
+        <div class="history-stat"><span>クロ</span><strong>${r.closerName}</strong></div>
+        <div class="history-stat"><span>顧客</span><strong>${r.customer}様</strong></div>
+        <span class="contract-badge ${badgeCls[r.result]}">${resultMap[r.result]}</span>
+      </div>
+      <button class="btn-edit-small" onclick="editClosingReport('${r.id}')">編集</button>
+    </div>`;
+  }).join('');
+}
+ 
+function editClosingReport(id) {
+  const r = (STORE.get('closing_reports')||[]).find(rep=>rep.id===id); if (!r) return;
+  if (currentUser.role!=='admin') { showToast('管理者のみ編集可能です','error'); return; }
+  editingClosingId = id;
+  document.getElementById('c-date').value = r.date;
+  document.getElementById('c-appointer').value = r.appointerId;
+  document.getElementById('c-closer').value = r.closerId;
+  document.getElementById('c-commenter').value = r.commenterId;
+  document.getElementById('c-customer').value = r.customer;
+  document.getElementById('c-result').value = r.result;
+  document.getElementById('c-apo-comment').value = r.apoComment||'';
+  document.getElementById('c-clo-comment').value = r.cloComment||'';
+  document.getElementById('c-apo-count').textContent = (r.apoComment||'').length+'文字';
+  document.getElementById('c-clo-count').textContent = (r.cloComment||'').length+'文字';
+  document.getElementById('c-cancel-edit').style.display = 'inline-block';
+  // Switch to closing tab
+  document.querySelectorAll('.report-tab-btn').forEach(b=>b.classList.remove('active'));
+  const closingBtn = document.querySelector('.admin-report-tab');
+  if (closingBtn) { closingBtn.classList.add('active'); switchReportTab('closing', closingBtn); }
+  document.getElementById('report-closing-section').scrollIntoView({behavior:'smooth'});
+}
+ 
+// ===== ERROR REPORT =====
+function submitErrorReport() {
+  const reporter = document.getElementById('err-reporter').value;
+  const subject = document.getElementById('err-subject').value.trim();
+  const content = document.getElementById('err-content').value.trim();
+  const status = document.getElementById('err-status');
+ 
+  if (!subject || !content) { showToast('件名と内容を入力してください','error'); return; }
+ 
+  // Send via EmailJS or mailto
+  const mailtoLink = `mailto:uchi2022.official@gmail.com?subject=${encodeURIComponent('[SIRIUSLINK.LOG] '+subject)}&body=${encodeURIComponent(`報告者: ${reporter}\n\n${content}`)}`;
+  
+  // Store locally
+  const errs = STORE.get('error_reports')||[];
+  errs.push({ id: genId(), reporter, subject, content, createdAt: new Date().toISOString() });
+  STORE.set('error_reports', errs);
+ 
+  // Open mailto
+  window.location.href = mailtoLink;
+ 
+  document.getElementById('err-subject').value = '';
+  document.getElementById('err-content').value = '';
+  status.innerHTML = '<span style="color:var(--success)">✓ メールクライアントが開きます。送信してください。送信先：uchi2022.official@gmail.com</span>';
+  showToast('メールクライアントを起動しました','success');
+}
+ 
+// ===== HISTORY (Admin) =====
+function populateHistStaffSelect() {
+  const sel = document.getElementById('hist-staff');
+  if (!sel) return;
+  const allStaffs = STORE.get('staffs')||[];
+  sel.innerHTML = '<option value="all">全スタッフ</option>' + allStaffs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+}
+ 
+function renderHistory() {
+  const y = parseInt(document.getElementById('hist-year')?.value||new Date().getFullYear());
+  const m = document.getElementById('hist-month')?.value||'all';
+  const staffId = document.getElementById('hist-staff')?.value||'all';
+ 
+  let reports = STORE.get('appoint_reports')||[];
+  reports = reports.filter(r => {
+    const d = new Date(r.date);
+    if (d.getFullYear()!==y) return false;
+    if (m!=='all' && d.getMonth()+1!==parseInt(m)) return false;
+    if (staffId!=='all' && r.staffId!==staffId) return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+ 
+  const content = document.getElementById('history-content');
+  if (!content) return;
+  if (!reports.length) { content.innerHTML='<div style="color:var(--silver);padding:20px;font-size:0.85rem;">データがありません</div>'; return; }
+  content.innerHTML = reports.map(r => {
+    const d = new Date(r.date);
+    return `<div class="history-item">
+      <div class="history-date">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 - <strong>${r.staffName}</strong> (${r.daytype==='weekday'?'平日対応':'通常対応'})</div>
+      <div class="history-stats">
+        <div class="history-stat"><span>ピンポン</span><strong>${r.pinpon}</strong></div>
+        <div class="history-stat"><span>対応</span><strong>${r.taio}</strong></div>
+        <div class="history-stat"><span>インキック</span><strong>${r.inkick}</strong></div>
+        <div class="history-stat"><span>ドアキック</span><strong>${r.doakick}</strong></div>
+        <div class="history-stat"><span>アプ</span><strong>${r.apu}</strong></div>
+        <div class="history-stat"><span>アポ</span><strong>${r.apo}</strong></div>
+      </div>
+      <button class="btn-edit-small" onclick="editAppointReportAdmin('${r.id}')">編集</button>
+    </div>`;
+  }).join('');
+}
+ 
+function editAppointReportAdmin(id) {
+  navigate('report');
+  setTimeout(()=>editAppointReport(id),100);
+}
+ 
+// ===== STAFF ROSTER =====
+let editingStaffId = null;
+ 
+function renderStaffForm() {
+  const teams = STORE.get('teams')||[];
+  document.getElementById('staff-form-content').innerHTML = `
+    <div class="form-row">
+      <div class="form-col"><label>氏名（漢字）</label><input type="text" id="sf-name" placeholder="山田 太郎"></div>
+      <div class="form-col"><label>氏名（フリガナ）</label><input type="text" id="sf-furigana" placeholder="ヤマダ タロウ"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>性別</label><select id="sf-gender"><option value="male">男性</option><option value="female">女性</option></select></div>
+      <div class="form-col"><label>生年月日</label><input type="date" id="sf-birthday"></div>
+      <div class="form-col"><label>入社日</label><input type="date" id="sf-joindate"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>チーム</label><select id="sf-team"><option value="">未所属</option>${teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select></div>
+      <div class="form-col"><label>役職</label><select id="sf-position"><option value="アポインター">アポインター</option><option value="自力プレーヤー">自力プレーヤー</option><option value="クローザー">クローザー</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>メールアドレス</label><input type="email" id="sf-email" placeholder="staff@example.com"></div>
+      <div class="form-col"><label>パスワード</label><input type="password" id="sf-password" placeholder="パスワード"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>権限</label><select id="sf-role"><option value="staff">スタッフ</option><option value="admin">管理者</option></select></div>
+    </div>
+  `;
+}
+ 
+function submitStaff() {
+  const name = document.getElementById('sf-name').value.trim();
+  const furigana = document.getElementById('sf-furigana').value.trim();
+  const gender = document.getElementById('sf-gender').value;
+  const birthday = document.getElementById('sf-birthday').value;
+  const joinDate = document.getElementById('sf-joindate').value;
+  const team = document.getElementById('sf-team').value;
+  const position = document.getElementById('sf-position').value;
+  const email = document.getElementById('sf-email').value.trim();
+  const password = document.getElementById('sf-password').value;
+  const role = document.getElementById('sf-role').value;
+ 
+  if (!name || !email) { showToast('氏名とメールアドレスは必須です','error'); return; }
+ 
+  const staffs = STORE.get('staffs')||[];
+  if (editingStaffId) {
+    const idx = staffs.findIndex(s=>s.id===editingStaffId);
+    if (idx>=0) {
+      staffs[idx] = {...staffs[idx], name, furigana, gender, birthday, joinDate, team, position, role, email};
+      if (password) staffs[idx].password = password;
+    }
+    STORE.set('staffs', staffs);
+    editingStaffId = null;
+    document.getElementById('staff-cancel-edit').style.display = 'none';
+    showToast('スタッフ情報を更新しました','success');
+  } else {
+    const exists = staffs.find(s=>s.email===email);
+    if (exists) { showToast('このメールアドレスは既に登録されています','error'); return; }
+    staffs.push({ id: genId(), name, furigana, gender, birthday, joinDate, team, position, email, password, role, quote:'', photo:'', active:true });
+    STORE.set('staffs', staffs);
+    showToast('スタッフを登録しました','success');
+  }
+  renderStaffForm();
+  renderStaffRoster();
+  renderTeamMemberCheckboxes();
+}
+ 
+function cancelStaffEdit() {
+  editingStaffId = null;
+  renderStaffForm();
+  document.getElementById('staff-cancel-edit').style.display = 'none';
+}
+ 
+function renderStaffRoster() {
+  const staffs = (STORE.get('staffs')||[]).sort((a,b)=>{
+    if (a.active===false && b.active!==false) return 1;
+    if (a.active!==false && b.active===false) return -1;
+    return (a.furigana||'').localeCompare(b.furigana||'','ja');
+  });
+  const list = document.getElementById('staff-roster-list');
+  if (!list) return;
+  list.innerHTML = staffs.map(s => {
+    const inactive = s.active===false;
+    return `<div class="history-item" style="${inactive?'opacity:0.5;':''}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div class="mini-avatar" style="width:36px;height:36px;font-size:0.85rem;">${s.photo?`<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover;">`:`<span>${s.name.charAt(0)}</span>`}</div>
+        <div>
+          <div style="font-weight:700;font-size:0.9rem;${inactive?'color:var(--gray)':''}">${s.name} <span style="font-size:0.72rem;color:var(--silver);">${s.furigana||''}</span></div>
+          <div style="font-size:0.75rem;color:var(--silver);">${s.email} | ${s.position||''} | ${s.role==='admin'?'管理者':'スタッフ'}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn-edit-small" onclick="editStaff('${s.id}')">編集</button>
+          ${inactive?`<button class="btn-edit-small" style="color:var(--success);" onclick="toggleStaffActive('${s.id}',true)">復帰</button>`:`<button class="btn-edit-small" style="color:var(--danger);" onclick="toggleStaffActive('${s.id}',false)">退社</button>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+ 
+function editStaff(id) {
+  const staffs = STORE.get('staffs')||[];
+  const s = staffs.find(st=>st.id===id); if(!s) return;
+  editingStaffId = id;
+  const teams = STORE.get('teams')||[];
+  document.getElementById('staff-form-content').innerHTML = `
+    <div class="form-row">
+      <div class="form-col"><label>氏名（漢字）</label><input type="text" id="sf-name" value="${s.name}"></div>
+      <div class="form-col"><label>氏名（フリガナ）</label><input type="text" id="sf-furigana" value="${s.furigana||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>性別</label><select id="sf-gender"><option value="male" ${s.gender==='male'?'selected':''}>男性</option><option value="female" ${s.gender==='female'?'selected':''}>女性</option></select></div>
+      <div class="form-col"><label>生年月日</label><input type="date" id="sf-birthday" value="${s.birthday||''}"></div>
+      <div class="form-col"><label>入社日</label><input type="date" id="sf-joindate" value="${s.joinDate||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>チーム</label><select id="sf-team"><option value="">未所属</option>${teams.map(t=>`<option value="${t.id}" ${s.team===t.id?'selected':''}>${t.name}</option>`).join('')}</select></div>
+      <div class="form-col"><label>役職</label><select id="sf-position"><option ${s.position==='アポインター'?'selected':''}>アポインター</option><option ${s.position==='自力プレーヤー'?'selected':''}>自力プレーヤー</option><option ${s.position==='クローザー'?'selected':''}>クローザー</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>メールアドレス</label><input type="email" id="sf-email" value="${s.email}"></div>
+      <div class="form-col"><label>パスワード（変更する場合のみ）</label><input type="password" id="sf-password" placeholder="変更なしは空欄"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>権限</label><select id="sf-role"><option value="staff" ${s.role==='staff'?'selected':''}>スタッフ</option><option value="admin" ${s.role==='admin'?'selected':''}>管理者</option></select></div>
+    </div>
+  `;
+  document.getElementById('staff-cancel-edit').style.display = 'inline-block';
+  document.querySelector('#page-staff-roster .card').scrollIntoView({behavior:'smooth'});
+}
+ 
+function toggleStaffActive(id, active) {
+  const staffs = STORE.get('staffs')||[];
+  const idx = staffs.findIndex(s=>s.id===id);
+  if (idx>=0) { staffs[idx].active = active; STORE.set('staffs', staffs); }
+  renderStaffRoster();
+  showToast(active?'スタッフを復帰しました':'スタッフを退社扱いにしました', 'success');
+}
+ 
+// ===== TEAM =====
+let editingTeamId = null;
+ 
+function renderTeamMemberCheckboxes() {
+  const staffs = getActiveStaffs();
+  const box = document.getElementById('team-member-checkboxes');
+  if (!box) return;
+  box.innerHTML = staffs.map(s => `
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:rgba(74,158,255,0.05);border:1px solid rgba(74,158,255,0.15);border-radius:8px;padding:6px 10px;font-size:0.8rem;">
+      <input type="checkbox" id="tm-${s.id}" value="${s.id}" style="width:14px;height:14px;cursor:pointer;border-radius:3px;">
+      ${s.name}
+    </label>
+  `).join('');
+}
+ 
+function submitTeam() {
+  const name = document.getElementById('team-name').value.trim();
+  if (!name) { showToast('チーム名を入力してください','error'); return; }
+ 
+  const members = Array.from(document.querySelectorAll('#team-member-checkboxes input:checked')).map(el=>el.value);
+  const teams = STORE.get('teams')||[];
+ 
+  if (editingTeamId) {
+    const idx = teams.findIndex(t=>t.id===editingTeamId);
+    if (idx>=0) teams[idx] = {...teams[idx], name, members};
+    // Update staff teams
+    const staffs = STORE.get('staffs')||[];
+    staffs.forEach(s => {
+      if (members.includes(s.id)) s.team = editingTeamId;
+      else if (s.team === editingTeamId) s.team = '';
+    });
+    STORE.set('staffs', staffs);
+    STORE.set('teams', teams);
+    editingTeamId = null;
+    document.getElementById('team-cancel-edit').style.display = 'none';
+    showToast('チームを更新しました','success');
+  } else {
+    const tid = genId();
+    teams.push({ id: tid, name, members });
+    // Update staff
+    const staffs = STORE.get('staffs')||[];
+    members.forEach(mid => {
+      const s = staffs.find(st=>st.id===mid);
+      if (s) s.team = tid;
+    });
+    STORE.set('staffs', staffs);
+    STORE.set('teams', teams);
+    showToast('チームを登録しました','success');
+  }
+ 
+  document.getElementById('team-name').value = '';
+  renderTeamMemberCheckboxes();
+  renderTeamList();
+}
+ 
+function cancelTeamEdit() {
+  editingTeamId = null;
+  document.getElementById('team-name').value = '';
+  renderTeamMemberCheckboxes();
+  document.getElementById('team-cancel-edit').style.display = 'none';
+}
+ 
+function renderTeamList() {
+  const teams = STORE.get('teams')||[];
+  const list = document.getElementById('team-list');
+  if (!list) return;
+  if (!teams.length) { list.innerHTML='<div style="color:var(--silver);padding:20px;font-size:0.85rem;">チームがありません</div>'; return; }
+  const staffs = STORE.get('staffs')||[];
+  list.innerHTML = teams.map(t => {
+    const members = staffs.filter(s=>t.members&&t.members.includes(s.id));
+    return `<div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:1rem;color:var(--white);">${t.name}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-edit-small" onclick="editTeam('${t.id}')">編集</button>
+          <button class="btn-edit-small" style="color:var(--danger);" onclick="deleteTeam('${t.id}')">削除</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${members.map(s=>`<div style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.15);border-radius:8px;padding:5px 10px;font-size:0.78rem;${s.active===false?'opacity:0.4;':''}">
+          <div class="mini-avatar" style="width:22px;height:22px;font-size:0.6rem;">${s.name.charAt(0)}</div>
+          <span ${s.active===false?'style="color:var(--gray)"':''}>${s.name}</span>
+          ${s.active===false?'<span style="font-size:0.65rem;color:var(--danger);">(退社)</span>':''}
+        </div>`).join('')}
+        ${!members.length?'<span style="font-size:0.8rem;color:var(--silver);">メンバーなし</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+ 
+function editTeam(id) {
+  const teams = STORE.get('teams')||[];
+  const t = teams.find(team=>team.id===id); if (!t) return;
+  editingTeamId = id;
+  document.getElementById('team-name').value = t.name;
+  renderTeamMemberCheckboxes();
+  // Check members
+  setTimeout(() => {
+    (t.members||[]).forEach(mid => {
+      const cb = document.getElementById('tm-'+mid);
+      if (cb) cb.checked = true;
+    });
+  }, 50);
+  document.getElementById('team-cancel-edit').style.display = 'inline-block';
+  document.getElementById('team-form-wrap').scrollIntoView({behavior:'smooth'});
+}
+ 
+function deleteTeam(id) {
+  if (!confirm('このチームを削除しますか？')) return;
+  let teams = STORE.get('teams')||[];
+  teams = teams.filter(t=>t.id!==id);
+  STORE.set('teams', teams);
+  // Clear staff team
+  const staffs = STORE.get('staffs')||[];
+  staffs.forEach(s=>{ if(s.team===id) s.team=''; });
+  STORE.set('staffs', staffs);
+  renderTeamList();
+  showToast('チームを削除しました','success');
+}
+ 
+// ===== NOTIFICATION =====
+function showNotification(msg) {
+  const banner = document.getElementById('notif-banner');
+  banner.innerHTML = `<div class="notif-icon">🌟</div><div class="notif-title">ご契約成立！</div><div class="notif-body">${msg.replace(/\n/g,'<br>')}</div>`;
+  banner.style.display = 'block';
+  setTimeout(()=>{ banner.style.display='none'; }, 6000);
+ 
+  // Browser notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('SIRIUSLINK.LOG 🌟 ご契約成立！', { body: msg });
+  } else if ('Notification' in window && Notification.permission !== 'denied') {
+    Notification.requestPermission().then(p => {
+      if (p==='granted') new Notification('SIRIUSLINK.LOG 🌟 ご契約成立！', { body: msg });
+    });
+  }
+}
+ 
+// ===== TOAST =====
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(()=>{ t.classList.remove('show'); }, 3000);
+}
+ 
+// ===== MODAL =====
+function openModal(html, title='') {
+  const mc = document.getElementById('modal-content');
+  mc.innerHTML = `<div class="modal-title">${title}</div>${html}`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+ 
+// ===== UTILS =====
+function genId() {
+  return Math.random().toString(36).substr(2,9)+'_'+Date.now();
+}
+ 
+// ===== START =====
+initData();
+generateStars();
+document.getElementById('login-email').focus();
+ 
+// Request notification permission on load
+if ('Notification' in window && Notification.permission === 'default') {
+  // Will request on first contract
+}
+</script>
+</body>
+</html>
