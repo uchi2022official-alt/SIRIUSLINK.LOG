@@ -1,21 +1,3 @@
-require "webrick"
-require "json"
-require "securerandom"
-require "digest"
-require "time"
-require "fileutils"
-require "open3"
-require "net/smtp"
-
-ROOT = File.expand_path(__dir__)
-DATA_DIR = File.join(ROOT, "data")
-STORE_PATH = File.join(DATA_DIR, "store.json")
-MAIL_TO = "uchi2022.official@gmail.com"
-DB_MUTEX = Mutex.new
-
-FileUtils.mkdir_p(DATA_DIR)
-
-INDEX_HTML = <<~HTML
 <!DOCTYPE html>
 <html lang="ja">
 <head>
