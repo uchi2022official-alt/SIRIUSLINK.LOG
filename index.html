@@ -27,9 +27,9 @@
   --glow: rgba(74,158,255,0.3);
   --star-glow: rgba(201,146,42,0.4);
 }
- 
+
 * { margin:0; padding:0; box-sizing:border-box; }
- 
+
 body {
   font-family: 'Noto Sans JP', sans-serif;
   background: var(--navy);
@@ -37,7 +37,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
 }
- 
+
 /* ===== STARS BACKGROUND ===== */
 .stars-bg {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -51,7 +51,7 @@ body {
   animation: twinkle var(--d) var(--delay) infinite alternate ease-in-out;
 }
 @keyframes twinkle { 0%{opacity:0.1;transform:scale(0.8)} 100%{opacity:1;transform:scale(1.2)} }
- 
+
 /* ===== LOGIN ===== */
 #login-screen {
   position: fixed; inset: 0; z-index: 1000;
@@ -120,7 +120,7 @@ body {
 }
 .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(74,158,255,0.4); }
 .login-error { color: var(--danger); font-size: 0.8rem; text-align: center; margin-top: 12px; display: none; }
- 
+
 /* ===== MAIN LAYOUT ===== */
 #app { display: none; min-height: 100vh; }
 .header {
@@ -159,7 +159,7 @@ body {
   background: none; border: none; color: var(--white); cursor: pointer;
   font-size: 1.3rem; padding: 4px;
 }
- 
+
 /* ===== SIDEBAR ===== */
 .sidebar {
   position: fixed; top: 56px; left: 0; width: 220px; bottom: 0;
@@ -190,7 +190,7 @@ body {
   letter-spacing: 0.1em; text-transform: uppercase;
 }
 .nav-divider { height: 1px; background: rgba(74,158,255,0.08); margin: 8px 15px; }
- 
+
 /* ===== CONTENT ===== */
 .main-content {
   margin-left: 220px;
@@ -199,12 +199,12 @@ body {
   min-height: calc(100vh - 56px);
   position: relative; z-index: 1;
 }
- 
+
 /* ===== PAGE SECTIONS ===== */
 .page { display: none; }
 .page.active { display: block; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
- 
+
 /* ===== COMPONENTS ===== */
 .page-title {
   font-family: 'Orbitron', monospace;
@@ -221,7 +221,7 @@ body {
   border-radius: 2px;
   display: inline-block;
 }
- 
+
 .card {
   background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(17,30,53,0.9));
   border: 1px solid rgba(74,158,255,0.15);
@@ -235,7 +235,7 @@ body {
   position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(74,158,255,0.4), transparent);
 }
- 
+
 .stat-card {
   background: linear-gradient(135deg, rgba(13,21,37,0.95), rgba(22,35,60,0.95));
   border: 1px solid rgba(74,158,255,0.2);
@@ -252,12 +252,12 @@ body {
 .stat-card .stat-unit { font-size: 0.7rem; color: var(--silver); margin-left: 3px; }
 .stat-card.gold .stat-value { color: var(--gold2); }
 .stat-card.large .stat-value { font-size: 2.6rem; }
- 
+
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
- 
+
 .section-title {
   font-size: 0.85rem; font-weight: 700; color: var(--white2);
   margin: 20px 0 12px;
@@ -266,7 +266,7 @@ body {
   display: flex; align-items: center; gap: 8px;
 }
 .section-title::before { content: '◈'; color: var(--accent); font-size: 0.7rem; }
- 
+
 .period-tabs {
   display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
 }
@@ -283,7 +283,7 @@ body {
 }
 .period-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 .period-tab:hover { border-color: var(--accent); color: var(--accent); }
- 
+
 select, input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], textarea {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(74,158,255,0.2);
@@ -296,7 +296,7 @@ select, input[type="text"], input[type="email"], input[type="password"], input[t
 }
 select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px rgba(74,158,255,0.15); }
 select option { background: var(--navy2); color: var(--white); }
- 
+
 .btn {
   padding: 9px 20px; border-radius: 8px; border: none;
   font-family: 'Noto Sans JP', sans-serif; font-size: 0.85rem; font-weight: 700;
@@ -308,12 +308,12 @@ select option { background: var(--navy2); color: var(--white); }
 .btn-secondary:hover { background: rgba(74,158,255,0.2); }
 .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold2)); color: white; }
 .btn-danger { background: rgba(255,68,102,0.15); border: 1px solid rgba(255,68,102,0.3); color: var(--danger); }
- 
+
 .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .form-col { flex: 1; min-width: 150px; }
 .form-col label { display: block; font-size: 0.75rem; color: var(--silver); margin-bottom: 5px; }
 .form-col select, .form-col input, .form-col textarea { width: 100%; }
- 
+
 /* ===== TIMELINE ===== */
 .timeline-item {
   background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(17,30,53,0.9));
@@ -346,7 +346,7 @@ select option { background: var(--navy2); color: var(--white); }
   margin-top: 8px;
 }
 .timeline-comment strong { color: var(--accent); }
- 
+
 /* ===== RANKING ===== */
 .ranking-container { position: relative; }
 .ranking-podium {
@@ -384,7 +384,7 @@ select option { background: var(--navy2); color: var(--white); }
 .podium-rank-1 .podium-avatar { width: 65px; height: 65px; border-color: var(--gold2); border-width: 3px; }
 .podium-name { font-size: 0.8rem; color: var(--white); font-weight: 700; margin-bottom: 3px; text-align: center; }
 .podium-value { font-size: 0.75rem; color: var(--silver); text-align: center; }
- 
+
 .ranking-list-item {
   display: flex; align-items: center; gap: 15px;
   padding: 14px 18px;
@@ -415,12 +415,12 @@ select option { background: var(--navy2); color: var(--white); }
 .rank-name { font-size: 0.9rem; font-weight: 700; flex: 1; }
 .rank-value { font-family: 'Orbitron', monospace; font-size: 1rem; color: var(--accent); font-weight: 700; }
 .rank-unit { font-size: 0.7rem; color: var(--silver); margin-left: 2px; }
- 
+
 /* Ranking sparkle effect for top 3 */
 .ranking-list-item.top1 { border-color: rgba(201,146,42,0.4); background: linear-gradient(135deg, rgba(201,146,42,0.08), rgba(13,21,37,0.95)); }
 .ranking-list-item.top2 { border-color: rgba(170,188,212,0.3); }
 .ranking-list-item.top3 { border-color: rgba(180,110,60,0.3); }
- 
+
 .rank-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
 .rank-tab {
   padding: 7px 14px; border-radius: 20px;
@@ -430,7 +430,7 @@ select option { background: var(--navy2); color: var(--white); }
   font-family: 'Noto Sans JP', sans-serif;
 }
 .rank-tab.active { background: linear-gradient(135deg, var(--accent2), var(--accent)); border-color: var(--accent); color: white; }
- 
+
 /* ===== STAFF TABLE ===== */
 .staff-table { width: 100%; border-collapse: collapse; }
 .staff-table th {
@@ -456,7 +456,7 @@ select option { background: var(--navy2); color: var(--white); }
   font-size: 0.7rem; font-weight: 700; color: white;
   flex-shrink: 0; overflow: hidden; border: 1px solid rgba(74,158,255,0.3);
 }
- 
+
 /* ===== PROFILE ===== */
 .profile-header {
   display: flex; align-items: center; gap: 25px;
@@ -496,7 +496,7 @@ select option { background: var(--navy2); color: var(--white); }
   margin-top: 10px; font-size: 0.85rem;
   color: var(--white2); font-style: italic;
 }
- 
+
 /* ===== REPORT FORM ===== */
 .report-tabs { display: flex; gap: 0; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(74,158,255,0.2); }
 .report-tab-btn {
@@ -506,7 +506,7 @@ select option { background: var(--navy2); color: var(--white); }
   cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em;
 }
 .report-tab-btn.active { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: white; }
- 
+
 .history-item {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(74,158,255,0.1);
@@ -525,7 +525,7 @@ select option { background: var(--navy2); color: var(--white); }
   color: var(--accent); font-size: 0.7rem; cursor: pointer;
   font-family: 'Noto Sans JP', sans-serif;
 }
- 
+
 /* ===== MODAL ===== */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 500;
@@ -547,7 +547,7 @@ select option { background: var(--navy2); color: var(--white); }
 .modal::-webkit-scrollbar-thumb { background: rgba(74,158,255,0.3); border-radius: 2px; }
 .modal-title { font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(74,158,255,0.15); }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(74,158,255,0.1); }
- 
+
 /* ===== TOAST ===== */
 .toast {
   position: fixed; bottom: 25px; right: 25px; z-index: 9999;
@@ -563,14 +563,14 @@ select option { background: var(--navy2); color: var(--white); }
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast.success { border-color: rgba(34,214,138,0.4); }
 .toast.error { border-color: rgba(255,68,102,0.4); }
- 
+
 /* ===== CANCEL RATE ===== */
 .cancel-rate-card {
   background: linear-gradient(135deg, rgba(255,68,102,0.1), rgba(13,21,37,0.9));
   border: 1px solid rgba(255,68,102,0.25);
 }
 .cancel-rate-card .stat-value { color: var(--danger); }
- 
+
 /* ===== CONTRACT BADGE ===== */
 .contract-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -580,12 +580,12 @@ select option { background: var(--navy2); color: var(--white); }
 .badge-contract { background: rgba(34,214,138,0.15); border: 1px solid rgba(34,214,138,0.3); color: var(--success); }
 .badge-lost { background: rgba(255,68,102,0.1); border: 1px solid rgba(255,68,102,0.2); color: var(--danger); }
 .badge-complete { background: rgba(74,158,255,0.15); border: 1px solid rgba(74,158,255,0.3); color: var(--accent); }
- 
+
 /* ===== ERROR REPORT ===== */
 .error-report-box { background: linear-gradient(135deg, rgba(13,21,37,0.9), rgba(17,30,53,0.9)); border: 1px solid rgba(74,158,255,0.15); border-radius: 14px; padding: 25px; }
 .error-report-box .subtitle { font-size: 0.82rem; color: var(--silver); margin-bottom: 20px; line-height: 1.7; }
 .error-report-box textarea { width: 100%; height: 150px; resize: vertical; }
- 
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); }
@@ -608,7 +608,7 @@ select option { background: var(--navy2); color: var(--white); }
   .form-row { flex-direction: column; }
   .profile-header { flex-direction: column; align-items: flex-start; }
 }
- 
+
 /* ===== NOTIFICATION ===== */
 .notif-banner {
   position: fixed; top: 65px; right: 15px; z-index: 400;
@@ -624,7 +624,7 @@ select option { background: var(--navy2); color: var(--white); }
 .notif-banner .notif-icon { font-size: 1.3rem; margin-bottom: 6px; }
 .notif-banner .notif-title { color: var(--gold2); font-weight: 700; margin-bottom: 4px; }
 .notif-banner .notif-body { color: var(--white2); line-height: 1.5; }
- 
+
 /* ===== GLITTER STARS ===== */
 .glitter { position: absolute; pointer-events: none; }
 .glitter::before, .glitter::after {
@@ -635,7 +635,7 @@ select option { background: var(--navy2); color: var(--white); }
   animation: glitter-anim 3s infinite;
 }
 @keyframes glitter-anim { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }
- 
+
 /* ===== TEAM COLORS ===== */
 .team-badge {
   display: inline-flex; align-items: center;
@@ -645,10 +645,10 @@ select option { background: var(--navy2); color: var(--white); }
   border: 1px solid rgba(74,158,255,0.25);
   color: var(--accent);
 }
- 
+
 /* ===== TABLE WRAPPER ===== */
 .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid rgba(74,158,255,0.1); }
- 
+
 /* Shimmer loading */
 .shimmer {
   background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
@@ -657,7 +657,7 @@ select option { background: var(--navy2); color: var(--white); }
   border-radius: 6px; height: 20px;
 }
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
- 
+
 /* Rate display */
 .rate-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 @media (max-width: 600px) { .rate-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -672,10 +672,10 @@ select option { background: var(--navy2); color: var(--white); }
 </style>
 </head>
 <body>
- 
+
 <!-- Stars Background -->
 <div class="stars-bg" id="stars-bg"></div>
- 
+
 <!-- Login Screen -->
 <div id="login-screen">
   <div class="login-box">
@@ -706,10 +706,10 @@ select option { background: var(--navy2); color: var(--white); }
     <p class="login-error" id="login-error">メールアドレスまたはパスワードが違います</p>
   </div>
 </div>
- 
+
 <!-- Sidebar overlay (mobile) -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
- 
+
 <!-- Main App -->
 <div id="app">
   <!-- Header -->
@@ -732,7 +732,7 @@ select option { background: var(--navy2); color: var(--white); }
       <span id="header-username">-</span>
     </div>
   </header>
- 
+
   <!-- Sidebar -->
   <nav class="sidebar" id="sidebar">
     <div class="nav-section-label">メイン</div>
@@ -775,17 +775,17 @@ select option { background: var(--navy2); color: var(--white); }
       <span class="nav-icon">🚪</span>ログアウト
     </div>
   </nav>
- 
+
   <!-- Main Content -->
   <main class="main-content" id="main-content">
- 
+
     <!-- ===== TIMELINE PAGE ===== -->
     <div class="page active" id="page-timeline">
       <div class="page-title">⭐ タイムライン</div>
       <p style="font-size:0.8rem;color:var(--silver);margin-bottom:20px;">契約成立のお知らせ（直近10件）</p>
       <div id="timeline-list"></div>
     </div>
- 
+
     <!-- ===== OVERALL PAGE ===== -->
     <div class="page" id="page-overall">
       <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
@@ -805,7 +805,7 @@ select option { background: var(--navy2); color: var(--white); }
       <h2 id="overall-heading" style="font-size:1rem;font-weight:700;color:var(--white2);margin-bottom:20px;"></h2>
       <div id="overall-content"></div>
     </div>
- 
+
     <!-- ===== RANKING INDIVIDUAL PAGE ===== -->
     <div class="page" id="page-ranking-individual">
       <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
@@ -845,7 +845,7 @@ select option { background: var(--navy2); color: var(--white); }
       <h2 id="rank-ind-heading" style="font-size:1rem;font-weight:700;color:var(--white2);margin-bottom:20px;"></h2>
       <div id="rank-ind-content"></div>
     </div>
- 
+
     <!-- ===== RANKING TEAM PAGE ===== -->
     <div class="page" id="page-ranking-team">
       <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
@@ -885,13 +885,13 @@ select option { background: var(--navy2); color: var(--white); }
       <h2 id="rank-team-heading" style="font-size:1rem;font-weight:700;color:var(--white2);margin-bottom:20px;"></h2>
       <div id="rank-team-content"></div>
     </div>
- 
+
     <!-- ===== PROFILE PAGE ===== -->
     <div class="page" id="page-profile">
       <div class="page-title">👤 個人プロフィール</div>
       <div id="profile-content"></div>
     </div>
- 
+
     <!-- ===== REPORT PAGE ===== -->
     <div class="page" id="page-report">
       <div class="page-title">📝 日報・商談報告</div>
@@ -934,7 +934,7 @@ select option { background: var(--navy2); color: var(--white); }
         <div class="section-title" style="margin-top:20px;">履歴（直近3件）</div>
         <div id="appoint-history-list"></div>
       </div>
- 
+
       <div id="report-closing-section" style="display:none">
         <div class="card">
           <div class="section-title">クロージング報告</div>
@@ -995,7 +995,7 @@ select option { background: var(--navy2); color: var(--white); }
         <div id="closing-history-list" style="margin-top:12px;"></div>
       </div>
     </div>
- 
+
     <!-- ===== ERROR REPORT PAGE ===== -->
     <div class="page" id="page-error-report">
       <div class="page-title">⚠️ システムエラー報告</div>
@@ -1013,7 +1013,7 @@ select option { background: var(--navy2); color: var(--white); }
         <div id="err-status" style="margin-top:10px;font-size:0.8rem;"></div>
       </div>
     </div>
- 
+
     <!-- ===== HISTORY PAGE (Admin Only) ===== -->
     <div class="page" id="page-history">
       <div class="page-title">🗂️ 履歴（管理者）</div>
@@ -1025,7 +1025,7 @@ select option { background: var(--navy2); color: var(--white); }
       </div>
       <div id="history-content"></div>
     </div>
- 
+
     <!-- ===== STAFF ROSTER PAGE (Admin Only) ===== -->
     <div class="page" id="page-staff-roster">
       <div class="page-title">📋 スタッフ名簿（管理者）</div>
@@ -1040,7 +1040,7 @@ select option { background: var(--navy2); color: var(--white); }
       <div class="section-title">名簿一覧</div>
       <div id="staff-roster-list"></div>
     </div>
- 
+
     <!-- ===== TEAM REGISTER PAGE ===== -->
     <div class="page" id="page-team-register">
       <div class="page-title">👥 チーム登録</div>
@@ -1059,28 +1059,28 @@ select option { background: var(--navy2); color: var(--white); }
       <div class="section-title">チーム一覧</div>
       <div id="team-list"></div>
     </div>
- 
+
   </main>
 </div>
- 
+
 <!-- Notification Banner -->
 <div class="notif-banner" id="notif-banner"></div>
- 
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
- 
+
 <!-- Modals -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" id="modal-content"></div>
 </div>
- 
+
 <script>
 // ===== DATA STORE (localStorage) =====
 const STORE = {
   get: (k) => { try { return JSON.parse(localStorage.getItem('sl_'+k)) || null; } catch(e){ return null; } },
   set: (k, v) => { localStorage.setItem('sl_'+k, JSON.stringify(v)); },
 };
- 
+
 // ===== INITIAL DATA =====
 function initData() {
   if (!STORE.get('staffs')) {
@@ -1094,10 +1094,10 @@ function initData() {
   if (!STORE.get('closing_reports')) { STORE.set('closing_reports', []); }
   if (!STORE.get('error_reports')) { STORE.set('error_reports', []); }
 }
- 
+
 // ===== AUTH =====
 let currentUser = null;
- 
+
 function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-password').value;
@@ -1112,7 +1112,7 @@ function doLogin() {
     document.getElementById('login-error').style.display = 'block';
   }
 }
- 
+
 function doLogout() {
   currentUser = null;
   document.getElementById('app').style.display = 'none';
@@ -1121,27 +1121,27 @@ function doLogout() {
   document.getElementById('login-password').value = '';
   document.getElementById('login-error').style.display = 'none';
 }
- 
+
 document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
- 
+
 // ===== INIT APP =====
 function initApp() {
   const u = currentUser;
   document.getElementById('header-username').textContent = u.name;
   document.getElementById('header-avatar').textContent = u.name.charAt(0);
- 
+
   if (u.role === 'admin') {
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
     document.querySelectorAll('.admin-report-tab').forEach(el => el.style.display = 'block');
     document.getElementById('admin-divider').style.display = 'block';
     document.getElementById('admin-section-label').style.display = 'block';
   }
- 
+
   // Populate year/month selects
   const now = new Date();
   const cy = now.getFullYear();
   const cm = now.getMonth() + 1;
- 
+
   ['overall-year','rank-ind-year','rank-team-year','hist-year','closing-hist-year'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -1164,32 +1164,32 @@ function initApp() {
   // closing hist month
   const chm = document.getElementById('closing-hist-month');
   if (chm) { for (let m=1;m<=12;m++) chm.innerHTML += `<option value="${m}">${m}月</option>`; }
- 
+
   // Set report date defaults
   const todayStr = now.toISOString().split('T')[0];
   ['r-date','c-date'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = todayStr;
   });
- 
+
   // Set appointer name
   const ra = document.getElementById('r-appointer');
   if (ra) ra.value = currentUser.name;
- 
+
   // Set error reporter
   const er = document.getElementById('err-reporter');
   if (er) er.value = currentUser.name;
- 
+
   // Populate staff selects for closing
   populateStaffSelects();
   populateHistStaffSelect();
- 
+
   // Staff form
   renderStaffForm();
- 
+
   // Team member checkboxes
   renderTeamMemberCheckboxes();
- 
+
   // Textarea counters
   document.getElementById('c-apo-comment').addEventListener('input', function() {
     document.getElementById('c-apo-count').textContent = this.value.length + '文字';
@@ -1197,15 +1197,15 @@ function initApp() {
   document.getElementById('c-clo-comment').addEventListener('input', function() {
     document.getElementById('c-clo-count').textContent = this.value.length + '文字';
   });
- 
+
   navigate('timeline');
   generateStars();
- 
+
   // Set closing hist year
   const chy = document.getElementById('closing-hist-year');
   if(chy){ chy.innerHTML=''; for(let y=cy-2;y<=cy+1;y++) chy.innerHTML+=`<option value="${y}" ${y===cy?'selected':''}>${y}年</option>`; }
 }
- 
+
 function generateStars() {
   const bg = document.getElementById('stars-bg');
   if (!bg) return;
@@ -1220,7 +1220,7 @@ function generateStars() {
   }
   bg.innerHTML += html;
 }
- 
+
 // ===== NAVIGATION =====
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1230,7 +1230,7 @@ function navigate(page) {
   const ni = document.querySelector(`.nav-item[data-page="${page}"]`);
   if (ni) ni.classList.add('active');
   closeSidebar();
- 
+
   // Render pages
   if (page === 'timeline') renderTimeline();
   if (page === 'overall') renderOverall();
@@ -1246,7 +1246,7 @@ function navigate(page) {
   if (page === 'staff-roster') { renderStaffForm(); renderStaffRoster(); }
   if (page === 'team-register') { renderTeamMemberCheckboxes(); renderTeamList(); }
 }
- 
+
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebar-overlay').classList.toggle('open');
@@ -1255,25 +1255,25 @@ function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('open');
 }
- 
+
 // ===== PERIOD SWITCH =====
 const periodState = { overall: 'month', 'rank-ind': 'month', 'rank-team': 'month' };
- 
+
 function switchPeriod(ctx, p, btn) {
   periodState[ctx] = p;
   const container = document.getElementById(ctx+'-period-tabs') || document.querySelector(`#page-${ctx === 'overall' ? 'overall' : (ctx === 'rank-ind' ? 'ranking-individual' : 'ranking-team')} .period-tabs`);
   if (container) container.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
- 
+
   const monthWraps = { overall: 'overall-month-select-wrap', 'rank-ind': 'rank-ind-month-select-wrap', 'rank-team': 'rank-team-month-select-wrap' };
   const w = document.getElementById(monthWraps[ctx]);
   if (w) w.style.display = p === 'month' ? 'flex' : 'none';
- 
+
   if (ctx === 'overall') renderOverall();
   if (ctx === 'rank-ind') renderRankingIndividual();
   if (ctx === 'rank-team') renderRankingTeam();
 }
- 
+
 // ===== TIMELINE =====
 function renderTimeline() {
   const closings = (STORE.get('closing_reports') || []).filter(r => r.result === 'contract' || r.result === 'complete');
@@ -1300,7 +1300,7 @@ function renderTimeline() {
     </div>`;
   }).join('');
 }
- 
+
 // ===== PERIOD FILTER =====
 function getFilteredReports(type, ctx) {
   const p = periodState[ctx] || 'month';
@@ -1319,7 +1319,7 @@ function getFilteredReports(type, ctx) {
     return all.filter(r => { const d=new Date(r.date); return d.getFullYear()===y && months.includes(d.getMonth()+1); });
   }
 }
- 
+
 function getPeriodLabel(ctx) {
   const p = periodState[ctx] || 'month';
   const yearEl = document.getElementById(ctx+'-year');
@@ -1332,22 +1332,22 @@ function getPeriodLabel(ctx) {
   const labels = {q1:'第1クール(1-3月)',q2:'第2クール(4-6月)',q3:'第3クール(7-9月)',q4:'第4クール(10-12月)'};
   return `${y}年 ${labels[p]}`;
 }
- 
+
 // ===== OVERALL =====
 function renderOverall() {
   const ar = getFilteredReports('appoint', 'overall');
   const cr = getFilteredReports('closing', 'overall');
   const period = getPeriodLabel('overall');
   document.getElementById('overall-heading').textContent = `${period} 全体営業成績`;
- 
+
   const staffs = (STORE.get('staffs')||[]).filter(s=>s.active!==false && s.role!=='admin');
- 
+
   // Aggregate
   let totalSales = 0;
   let totalComplete = cr.filter(r=>r.result==='complete').length;
   let totalDays = 0, totalPinpon=0, totalTaio=0, totalInkick=0, totalDoakick=0, totalTaishougai=0, totalApu=0, totalApo=0;
   let totalShoudan=0, totalContract=0, totalApoContract=0, totalCloContract=0, totalApoComplete=0, totalCloComplete=0;
- 
+
   ar.forEach(r => {
     totalDays += r.daytype==='weekday'?0.3:1;
     totalPinpon += r.pinpon||0; totalTaio += r.taio||0; totalInkick += r.inkick||0;
@@ -1369,7 +1369,7 @@ function renderOverall() {
       if (r.appointerName!==r.closerName) { totalApoContract++; totalCloContract++; }
     }
   });
- 
+
   // Re-calculate properly
   totalApoContract = cr.filter(r=>(r.result==='contract'||r.result==='complete')).length;
   totalCloContract = cr.filter(r=>(r.result==='contract'||r.result==='complete')).length;
@@ -1377,7 +1377,7 @@ function renderOverall() {
   totalCloComplete = cr.filter(r=>r.result==='complete').length;
   totalContract = cr.filter(r=>r.result==='contract'||r.result==='complete').length;
   totalShoudan = cr.length;
- 
+
   const pinponCompleteRate = totalPinpon>0 ? Math.round(totalComplete/totalPinpon*100) : 0;
   const avgPinpon = totalDays>0 ? Math.round(totalPinpon/totalDays) : 0;
   const cancelRate = totalContract>0 ? Math.round((totalContract-totalComplete)/totalContract*100) : 0;
@@ -1387,7 +1387,7 @@ function renderOverall() {
   const apuApoRate = totalApu>0 ? Math.round(totalApo/totalApu*100) : 0;
   const apoSoudanRate = totalApo>0 ? Math.round(totalShoudan/totalApo*100) : 0;
   const soudanCompleteRate = totalShoudan>0 ? Math.round(totalComplete/totalShoudan*100) : 0;
- 
+
   const content = document.getElementById('overall-content');
   content.innerHTML = `
     <div class="grid-2" style="margin-bottom:15px;">
@@ -1468,14 +1468,14 @@ function renderOverall() {
     </div>
   `;
 }
- 
+
 function getActiveStaffs() {
   return (STORE.get('staffs')||[]).filter(s=>s.active!==false&&s.role!=='admin');
 }
- 
+
 // ===== RANKING =====
 const rankState = { ind: 'apo-complete', team: 'apo-complete' };
- 
+
 function switchRankTab(ctx, tab, btn) {
   rankState[ctx] = tab;
   // Remove active from all rank-tab siblings in same context
@@ -1485,7 +1485,7 @@ function switchRankTab(ctx, tab, btn) {
   if (ctx === 'ind') renderRankingIndividual();
   else renderRankingTeam();
 }
- 
+
 function getRankLabel(tab) {
   const labels = {
     'apo-complete':'アポイント 完工数ランキング',
@@ -1499,7 +1499,7 @@ function getRankLabel(tab) {
   };
   return labels[tab] || tab;
 }
- 
+
 function getStaffRankValue(s, tab, ar, cr) {
   switch(tab) {
     case 'apo-complete': return cr.filter(r=>r.appointerId===s.id&&r.result==='complete').length;
@@ -1525,40 +1525,40 @@ function getStaffRankValue(s, tab, ar, cr) {
     default: return 0;
   }
 }
- 
+
 function getRankUnit(tab) {
   return ['pinpon-rate','clo-rate','cancel-rate'].includes(tab)?'%':'件';
 }
- 
+
 function renderRankingIndividual() {
   const tab = rankState.ind;
   const ar = getFilteredReports('appoint','rank-ind');
   const cr = getFilteredReports('closing','rank-ind');
   const period = getPeriodLabel('rank-ind');
   document.getElementById('rank-ind-heading').textContent = `${period} ${getRankLabel(tab)}`;
- 
+
   const staffs = getActiveStaffs();
   const ranked = staffs.map(s => ({...s, val: getStaffRankValue(s, tab, ar, cr)}));
- 
+
   if (tab === 'cancel-rate') ranked.sort((a,b)=>a.val-b.val);
   else ranked.sort((a,b)=>b.val-a.val);
- 
+
   document.getElementById('rank-ind-content').innerHTML = renderRankingHTML(ranked, tab);
 }
- 
+
 function renderRankingTeam() {
   const tab = rankState.team;
   const ar = getFilteredReports('appoint','rank-team');
   const cr = getFilteredReports('closing','rank-team');
   const period = getPeriodLabel('rank-team');
   document.getElementById('rank-team-heading').textContent = `${period} ${getRankLabel(tab)}`;
- 
+
   const teams = STORE.get('teams') || [];
   if (!teams.length) {
     document.getElementById('rank-team-content').innerHTML = '<div style="text-align:center;color:var(--silver);padding:40px;font-size:0.85rem;">チームが登録されていません</div>';
     return;
   }
- 
+
   const ranked = teams.map(t => {
     const members = (STORE.get('staffs')||[]).filter(s=>s.team===t.id&&s.active!==false);
     let val = 0;
@@ -1586,26 +1586,26 @@ function renderRankingTeam() {
     }
     return { id: t.id, name: t.name, val, isTeam: true, members };
   });
- 
+
   if (tab==='cancel-rate') ranked.sort((a,b)=>a.val-b.val);
   else ranked.sort((a,b)=>b.val-a.val);
- 
+
   document.getElementById('rank-team-content').innerHTML = renderRankingHTML(ranked, tab, true);
 }
- 
+
 function renderRankingHTML(ranked, tab, isTeam=false) {
   const unit = getRankUnit(tab);
   if (!ranked.length) return '<div style="text-align:center;color:var(--silver);padding:40px;font-size:0.85rem;">データがありません</div>';
- 
+
   const rankIcons = ['👑','🥈','🥉'];
   const rankColors = ['var(--gold2)','#aabcd4','#b46e3c'];
   const top3 = ranked.slice(0,3);
   const rest = ranked.slice(3);
- 
+
   // Podium for top 3
   const podiumOrder = top3.length>=2 ? [top3[1], top3[0], top3[2]].filter(Boolean) : top3;
   const podiumPositions = top3.length>=2 ? [2,1,3] : [1,2,3];
- 
+
   let podiumHTML = '';
   if (top3.length) {
     podiumHTML = `<div class="ranking-podium">`;
@@ -1623,7 +1623,7 @@ function renderRankingHTML(ranked, tab, isTeam=false) {
     });
     podiumHTML += `</div>`;
   }
- 
+
   let listHTML = ranked.map((item, idx) => {
     const rank = idx+1;
     const cls = rank===1?'top1':rank===2?'top2':rank===3?'top3':'';
@@ -1636,10 +1636,10 @@ function renderRankingHTML(ranked, tab, isTeam=false) {
       <div><span class="rank-value">${item.val}</span><span class="rank-unit">${unit}</span></div>
     </div>`;
   }).join('');
- 
+
   return podiumHTML + `<div style="margin-top:20px;">${listHTML}</div>`;
 }
- 
+
 // ===== PROFILE =====
 let viewingProfileId = null;
 function renderProfile(staffId) {
@@ -1650,7 +1650,7 @@ function renderProfile(staffId) {
   const isAdmin = currentUser.role === 'admin';
   const canEditInfo = isAdmin;
   const canEditSelf = isOwn;
- 
+
   // Age & birthday
   const bd = s.birthday ? new Date(s.birthday) : null;
   const now = new Date();
@@ -1662,7 +1662,7 @@ function renderProfile(staffId) {
     if (now < thisYearBd) age--;
     birthdayDisplay = `${bd.getMonth()+1}月${bd.getDate()}日`;
   }
- 
+
   // Activity period
   let activity = '';
   if (s.joinDate) {
@@ -1673,10 +1673,10 @@ function renderProfile(staffId) {
     const remainMonths = months%12;
     activity = years>0 ? `${years}年${remainMonths}ヶ月目` : `${remainMonths}ヶ月目`;
   }
- 
+
   const ar = (STORE.get('appoint_reports')||[]).filter(r=>r.staffId===s.id);
   const cr = (STORE.get('closing_reports')||[]);
- 
+
   const content = document.getElementById('profile-content');
   content.innerHTML = `
     <div class="profile-header">
@@ -1714,16 +1714,16 @@ function renderProfile(staffId) {
     </div>
     <div id="prof-stats"></div>
   `;
- 
+
   // Set default date range (current month)
   const y = now.getFullYear(), m = now.getMonth()+1;
   document.getElementById('prof-date-from').value = `${y}-${String(m).padStart(2,'0')}-01`;
   const lastDay = new Date(y, m, 0).getDate();
   document.getElementById('prof-date-to').value = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
- 
+
   renderProfileStats(s.id);
 }
- 
+
 function renderProfileStats(staffId) {
   const from = document.getElementById('prof-date-from')?.value;
   const to = document.getElementById('prof-date-to')?.value;
@@ -1739,7 +1739,7 @@ function renderProfileStats(staffId) {
     if (to && r.date > to) return false;
     return true;
   });
- 
+
   const days=ar.reduce((a,r)=>a+(r.daytype==='weekday'?0.3:1),0);
   const pp=ar.reduce((a,r)=>a+(r.pinpon||0),0);
   const ta=ar.reduce((a,r)=>a+(r.taio||0),0);
@@ -1753,7 +1753,7 @@ function renderProfileStats(staffId) {
   const cloShoudan = cr.filter(r=>r.closerId===staffId).length;
   const cloContracts = cr.filter(r=>r.closerId===staffId&&(r.result==='contract'||r.result==='complete')).length;
   const cloComplete = cr.filter(r=>r.closerId===staffId&&r.result==='complete').length;
- 
+
   const pinponCompleteRate = pp>0?Math.round(apoComplete/pp*100):0;
   const avgPinpon = days>0?Math.round(pp/days):0;
   const taioRate = pp>0?Math.round(ta/pp*100):0;
@@ -1763,7 +1763,7 @@ function renderProfileStats(staffId) {
   const shoudanCompleteRate = cloShoudan>0?Math.round(cloComplete/cloShoudan*100):0;
   const cloCompleteRate = cloShoudan>0?Math.round(cloComplete/cloShoudan*100):0;
   const cancelRate = cloContracts>0?Math.round((cloContracts-cloComplete)/cloContracts*100):0;
- 
+
   document.getElementById('prof-stats').innerHTML = `
     <div class="card" style="margin-bottom:15px;">
       <div class="section-title">アポ成績</div>
@@ -1812,7 +1812,7 @@ function renderProfileStats(staffId) {
     </div>
   `;
 }
- 
+
 function saveQuote() {
   const val = document.getElementById('quote-input')?.value || '';
   const staffs = STORE.get('staffs') || [];
@@ -1820,7 +1820,7 @@ function saveQuote() {
   if (idx>=0) { staffs[idx].quote = val; STORE.set('staffs', staffs); currentUser.quote = val; }
   showToast('一言を保存しました', 'success');
 }
- 
+
 function editProfilePhoto() {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
@@ -1839,24 +1839,24 @@ function editProfilePhoto() {
   };
   input.click();
 }
- 
+
 function getTeamName(teamId) {
   const teams = STORE.get('teams')||[];
   const t = teams.find(t=>t.id===teamId);
   return t?t.name:'';
 }
- 
+
 // ===== REPORT =====
 let editingReportId = null;
 let editingClosingId = null;
- 
+
 function switchReportTab(tab, btn) {
   document.querySelectorAll('.report-tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('report-appoint-section').style.display = tab==='appoint'?'block':'none';
   document.getElementById('report-closing-section').style.display = tab==='closing'?'block':'none';
 }
- 
+
 function submitAppointReport() {
   const date = document.getElementById('r-date').value;
   const daytype = document.getElementById('r-daytype').value;
@@ -1867,9 +1867,9 @@ function submitAppointReport() {
   const taishougai = parseInt(document.getElementById('r-taishougai').value)||0;
   const apu = parseInt(document.getElementById('r-apu').value)||0;
   const apo = parseInt(document.getElementById('r-apo').value)||0;
- 
+
   if (!date) { showToast('日時を選択してください','error'); return; }
- 
+
   const reports = STORE.get('appoint_reports')||[];
   if (editingReportId) {
     const idx = reports.findIndex(r=>r.id===editingReportId);
@@ -1886,7 +1886,7 @@ function submitAppointReport() {
   resetAppointForm();
   renderAppointHistory();
 }
- 
+
 function resetAppointForm() {
   ['r-pinpon','r-taio','r-inkick','r-doakick','r-taishougai','r-apu','r-apo'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='0';
@@ -1894,13 +1894,13 @@ function resetAppointForm() {
   document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('r-daytype').value = 'normal';
 }
- 
+
 function cancelEdit() {
   editingReportId = null;
   resetAppointForm();
   document.getElementById('r-cancel-edit').style.display = 'none';
 }
- 
+
 function renderAppointHistory() {
   const reports = (STORE.get('appoint_reports')||[]).filter(r=>r.staffId===currentUser.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   const list = document.getElementById('appoint-history-list');
@@ -1922,7 +1922,7 @@ function renderAppointHistory() {
     </div>`;
   }).join('');
 }
- 
+
 function editAppointReport(id) {
   const reports = STORE.get('appoint_reports')||[];
   const r = reports.find(rep=>rep.id===id); if (!r) return;
@@ -1939,7 +1939,7 @@ function editAppointReport(id) {
   document.getElementById('r-cancel-edit').style.display = 'inline-block';
   document.querySelector('#page-report .card').scrollIntoView({behavior:'smooth'});
 }
- 
+
 function populateStaffSelects() {
   const staffs = getActiveStaffs();
   const allStaffs = (STORE.get('staffs')||[]).filter(s=>s.active!==false);
@@ -1948,11 +1948,11 @@ function populateStaffSelects() {
     sel.innerHTML = staffs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   });
 }
- 
+
 function toggleCloserComment() {
   // Can keep closer comment optional if closer = commenter - handled on submit
 }
- 
+
 function submitClosingReport() {
   const date = document.getElementById('c-date').value;
   const appointerId = document.getElementById('c-appointer').value;
@@ -1962,7 +1962,7 @@ function submitClosingReport() {
   const result = document.getElementById('c-result').value;
   const apoComment = document.getElementById('c-apo-comment').value.trim();
   const cloComment = document.getElementById('c-clo-comment').value.trim();
- 
+
   if (!date || !customer) { showToast('必須項目を入力してください','error'); return; }
   if (apoComment.length < 50 || apoComment.length > 100) { showToast('アポインターへのコメントは50〜100文字で入力してください','error'); return; }
   const isSelfCloser = closerId === commenterId;
@@ -1970,12 +1970,12 @@ function submitClosingReport() {
     showToast('クローザーへのコメントは50〜100文字または空欄にしてください','error'); return;
   }
   if (!isSelfCloser && !cloComment) {} // OK
- 
+
   const staffs = STORE.get('staffs')||[];
   const appointer = staffs.find(s=>s.id===appointerId);
   const closer = staffs.find(s=>s.id===closerId);
   const commenter = staffs.find(s=>s.id===commenterId);
- 
+
   const report = {
     id: editingClosingId || genId(),
     date, appointerId, closerId, commenterId,
@@ -1985,7 +1985,7 @@ function submitClosingReport() {
     customer, result, apoComment, cloComment,
     createdAt: new Date().toISOString()
   };
- 
+
   const reports = STORE.get('closing_reports')||[];
   if (editingClosingId) {
     const idx = reports.findIndex(r=>r.id===editingClosingId);
@@ -1996,18 +1996,18 @@ function submitClosingReport() {
   STORE.set('closing_reports', reports);
   editingClosingId = null;
   document.getElementById('c-cancel-edit').style.display = 'none';
- 
+
   // Notification for contract
   if (result === 'contract' || result === 'complete') {
     showNotification(`🎉 ご契約！\nアポ：${appointer?.name} / クロ：${closer?.name}\n顧客：${customer}様`);
   }
- 
+
   showToast('クロージング報告を送信しました','success');
   resetClosingForm();
   renderClosingHistory();
   renderTimeline();
 }
- 
+
 function resetClosingForm() {
   document.getElementById('c-customer').value = '';
   document.getElementById('c-apo-comment').value = '';
@@ -2016,13 +2016,13 @@ function resetClosingForm() {
   document.getElementById('c-apo-count').textContent = '0文字';
   document.getElementById('c-clo-count').textContent = '0文字';
 }
- 
+
 function cancelClosingEdit() {
   editingClosingId = null;
   resetClosingForm();
   document.getElementById('c-cancel-edit').style.display = 'none';
 }
- 
+
 function renderClosingHistory() {
   const yearEl = document.getElementById('closing-hist-year');
   const monthEl = document.getElementById('closing-hist-month');
@@ -2036,7 +2036,7 @@ function renderClosingHistory() {
     if (m!=='all' && d.getMonth()+1!==parseInt(m)) return false;
     return true;
   }).sort((a,b)=>b.date.localeCompare(a.date));
- 
+
   const list = document.getElementById('closing-history-list');
   if (!list) return;
   if (!reports.length) { list.innerHTML = '<div style="color:var(--silver);font-size:0.8rem;padding:10px;">履歴がありません</div>'; return; }
@@ -2056,7 +2056,7 @@ function renderClosingHistory() {
     </div>`;
   }).join('');
 }
- 
+
 function editClosingReport(id) {
   const r = (STORE.get('closing_reports')||[]).find(rep=>rep.id===id); if (!r) return;
   if (currentUser.role!=='admin') { showToast('管理者のみ編集可能です','error'); return; }
@@ -2078,16 +2078,16 @@ function editClosingReport(id) {
   if (closingBtn) { closingBtn.classList.add('active'); switchReportTab('closing', closingBtn); }
   document.getElementById('report-closing-section').scrollIntoView({behavior:'smooth'});
 }
- 
+
 // ===== ERROR REPORT =====
 function submitErrorReport() {
   const reporter = document.getElementById('err-reporter').value;
   const subject = document.getElementById('err-subject').value.trim();
   const content = document.getElementById('err-content').value.trim();
   const status = document.getElementById('err-status');
- 
+
   if (!subject || !content) { showToast('件名と内容を入力してください','error'); return; }
- 
+
   // Send via EmailJS or mailto
   const mailtoLink = `mailto:uchi2022.official@gmail.com?subject=${encodeURIComponent('[SIRIUSLINK.LOG] '+subject)}&body=${encodeURIComponent(`報告者: ${reporter}\n\n${content}`)}`;
   
@@ -2095,16 +2095,16 @@ function submitErrorReport() {
   const errs = STORE.get('error_reports')||[];
   errs.push({ id: genId(), reporter, subject, content, createdAt: new Date().toISOString() });
   STORE.set('error_reports', errs);
- 
+
   // Open mailto
   window.location.href = mailtoLink;
- 
+
   document.getElementById('err-subject').value = '';
   document.getElementById('err-content').value = '';
   status.innerHTML = '<span style="color:var(--success)">✓ メールクライアントが開きます。送信してください。送信先：uchi2022.official@gmail.com</span>';
   showToast('メールクライアントを起動しました','success');
 }
- 
+
 // ===== HISTORY (Admin) =====
 function populateHistStaffSelect() {
   const sel = document.getElementById('hist-staff');
@@ -2112,12 +2112,12 @@ function populateHistStaffSelect() {
   const allStaffs = STORE.get('staffs')||[];
   sel.innerHTML = '<option value="all">全スタッフ</option>' + allStaffs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
 }
- 
+
 function renderHistory() {
   const y = parseInt(document.getElementById('hist-year')?.value||new Date().getFullYear());
   const m = document.getElementById('hist-month')?.value||'all';
   const staffId = document.getElementById('hist-staff')?.value||'all';
- 
+
   let reports = STORE.get('appoint_reports')||[];
   reports = reports.filter(r => {
     const d = new Date(r.date);
@@ -2126,7 +2126,7 @@ function renderHistory() {
     if (staffId!=='all' && r.staffId!==staffId) return false;
     return true;
   }).sort((a,b)=>b.date.localeCompare(a.date));
- 
+
   const content = document.getElementById('history-content');
   if (!content) return;
   if (!reports.length) { content.innerHTML='<div style="color:var(--silver);padding:20px;font-size:0.85rem;">データがありません</div>'; return; }
@@ -2146,15 +2146,15 @@ function renderHistory() {
     </div>`;
   }).join('');
 }
- 
+
 function editAppointReportAdmin(id) {
   navigate('report');
   setTimeout(()=>editAppointReport(id),100);
 }
- 
+
 // ===== STAFF ROSTER =====
 let editingStaffId = null;
- 
+
 function renderStaffForm() {
   const teams = STORE.get('teams')||[];
   document.getElementById('staff-form-content').innerHTML = `
@@ -2180,7 +2180,7 @@ function renderStaffForm() {
     </div>
   `;
 }
- 
+
 function submitStaff() {
   const name = document.getElementById('sf-name').value.trim();
   const furigana = document.getElementById('sf-furigana').value.trim();
@@ -2192,9 +2192,9 @@ function submitStaff() {
   const email = document.getElementById('sf-email').value.trim();
   const password = document.getElementById('sf-password').value;
   const role = document.getElementById('sf-role').value;
- 
+
   if (!name || !email) { showToast('氏名とメールアドレスは必須です','error'); return; }
- 
+
   const staffs = STORE.get('staffs')||[];
   if (editingStaffId) {
     const idx = staffs.findIndex(s=>s.id===editingStaffId);
@@ -2217,13 +2217,13 @@ function submitStaff() {
   renderStaffRoster();
   renderTeamMemberCheckboxes();
 }
- 
+
 function cancelStaffEdit() {
   editingStaffId = null;
   renderStaffForm();
   document.getElementById('staff-cancel-edit').style.display = 'none';
 }
- 
+
 function renderStaffRoster() {
   const staffs = (STORE.get('staffs')||[]).sort((a,b)=>{
     if (a.active===false && b.active!==false) return 1;
@@ -2249,7 +2249,7 @@ function renderStaffRoster() {
     </div>`;
   }).join('');
 }
- 
+
 function editStaff(id) {
   const staffs = STORE.get('staffs')||[];
   const s = staffs.find(st=>st.id===id); if(!s) return;
@@ -2280,7 +2280,7 @@ function editStaff(id) {
   document.getElementById('staff-cancel-edit').style.display = 'inline-block';
   document.querySelector('#page-staff-roster .card').scrollIntoView({behavior:'smooth'});
 }
- 
+
 function toggleStaffActive(id, active) {
   const staffs = STORE.get('staffs')||[];
   const idx = staffs.findIndex(s=>s.id===id);
@@ -2288,10 +2288,10 @@ function toggleStaffActive(id, active) {
   renderStaffRoster();
   showToast(active?'スタッフを復帰しました':'スタッフを退社扱いにしました', 'success');
 }
- 
+
 // ===== TEAM =====
 let editingTeamId = null;
- 
+
 function renderTeamMemberCheckboxes() {
   const staffs = getActiveStaffs();
   const box = document.getElementById('team-member-checkboxes');
@@ -2303,14 +2303,14 @@ function renderTeamMemberCheckboxes() {
     </label>
   `).join('');
 }
- 
+
 function submitTeam() {
   const name = document.getElementById('team-name').value.trim();
   if (!name) { showToast('チーム名を入力してください','error'); return; }
- 
+
   const members = Array.from(document.querySelectorAll('#team-member-checkboxes input:checked')).map(el=>el.value);
   const teams = STORE.get('teams')||[];
- 
+
   if (editingTeamId) {
     const idx = teams.findIndex(t=>t.id===editingTeamId);
     if (idx>=0) teams[idx] = {...teams[idx], name, members};
@@ -2338,19 +2338,19 @@ function submitTeam() {
     STORE.set('teams', teams);
     showToast('チームを登録しました','success');
   }
- 
+
   document.getElementById('team-name').value = '';
   renderTeamMemberCheckboxes();
   renderTeamList();
 }
- 
+
 function cancelTeamEdit() {
   editingTeamId = null;
   document.getElementById('team-name').value = '';
   renderTeamMemberCheckboxes();
   document.getElementById('team-cancel-edit').style.display = 'none';
 }
- 
+
 function renderTeamList() {
   const teams = STORE.get('teams')||[];
   const list = document.getElementById('team-list');
@@ -2378,7 +2378,7 @@ function renderTeamList() {
     </div>`;
   }).join('');
 }
- 
+
 function editTeam(id) {
   const teams = STORE.get('teams')||[];
   const t = teams.find(team=>team.id===id); if (!t) return;
@@ -2395,7 +2395,7 @@ function editTeam(id) {
   document.getElementById('team-cancel-edit').style.display = 'inline-block';
   document.getElementById('team-form-wrap').scrollIntoView({behavior:'smooth'});
 }
- 
+
 function deleteTeam(id) {
   if (!confirm('このチームを削除しますか？')) return;
   let teams = STORE.get('teams')||[];
@@ -2408,14 +2408,14 @@ function deleteTeam(id) {
   renderTeamList();
   showToast('チームを削除しました','success');
 }
- 
+
 // ===== NOTIFICATION =====
 function showNotification(msg) {
   const banner = document.getElementById('notif-banner');
   banner.innerHTML = `<div class="notif-icon">🌟</div><div class="notif-title">ご契約成立！</div><div class="notif-body">${msg.replace(/\n/g,'<br>')}</div>`;
   banner.style.display = 'block';
   setTimeout(()=>{ banner.style.display='none'; }, 6000);
- 
+
   // Browser notification
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification('SIRIUSLINK.LOG 🌟 ご契約成立！', { body: msg });
@@ -2425,7 +2425,7 @@ function showNotification(msg) {
     });
   }
 }
- 
+
 // ===== TOAST =====
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
@@ -2433,7 +2433,7 @@ function showToast(msg, type='') {
   t.className = 'toast ' + type + ' show';
   setTimeout(()=>{ t.classList.remove('show'); }, 3000);
 }
- 
+
 // ===== MODAL =====
 function openModal(html, title='') {
   const mc = document.getElementById('modal-content');
@@ -2446,17 +2446,17 @@ function closeModal() {
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 });
- 
+
 // ===== UTILS =====
 function genId() {
   return Math.random().toString(36).substr(2,9)+'_'+Date.now();
 }
- 
+
 // ===== START =====
 initData();
 generateStars();
 document.getElementById('login-email').focus();
- 
+
 // Request notification permission on load
 if ('Notification' in window && Notification.permission === 'default') {
   // Will request on first contract
