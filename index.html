@@ -1,585 +1,3210 @@
+require "webrick"
+require "json"
+require "securerandom"
+require "digest"
+require "time"
+require "fileutils"
+require "open3"
+require "net/smtp"
+
+ROOT = File.expand_path(__dir__)
+DATA_DIR = File.join(ROOT, "data")
+STORE_PATH = File.join(DATA_DIR, "store.json")
+MAIL_TO = "uchi2022.official@gmail.com"
+DB_MUTEX = Mutex.new
+
+FileUtils.mkdir_p(DATA_DIR)
+
+INDEX_HTML = <<~HTML
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIRIUSLINK.LOG | 営業管理システム</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
-        .sidebar-active { background-color: #2563eb; color: white; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIRIUSLINK.LOG</title>
+  <style>
+    :root {
+      --bg: #050b14;
+      --bg-soft: #102141;
+      --panel: rgba(16, 33, 65, 0.72);
+      --panel-strong: rgba(10, 21, 40, 0.92);
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #e2e8f0;
+      --muted: #a0aec0;
+      --accent: #3182ce;
+      --accent-2: #63b3ed;
+      --gold: #f6ad55;
+      --silver: #d6e4ff;
+      --bronze: #d0a27b;
+      --danger: #ff7e9f;
+      --success: #7df0c4;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 50%, rgba(49, 130, 206, 0.15), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(246, 173, 85, 0.1), transparent 25%),
+        linear-gradient(160deg, #050b14 0%, #08111f 45%, #091523 100%);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    body::before {
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.85) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 76% 22%, rgba(150, 220, 255, 0.8) 0 1px, transparent 2px),
+        radial-gradient(circle at 34% 74%, rgba(255, 255, 255, 0.7) 0 1px, transparent 2px),
+        radial-gradient(circle at 86% 82%, rgba(130, 180, 255, 0.6) 0 1.5px, transparent 2px);
+      opacity: 0.55;
+    }
+
+    body::after {
+      background: linear-gradient(120deg, transparent 0%, rgba(132, 216, 255, 0.06) 40%, transparent 70%);
+      animation: shimmer 12s linear infinite;
+    }
+
+    @keyframes shimmer {
+      from { transform: translateX(-10%); }
+      to { transform: translateX(10%); }
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; }
+
+    .auth-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .auth-card {
+      width: min(1040px, 100%);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+    }
+
+    .auth-hero,
+    .auth-form {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .auth-hero {
+      padding: 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-hero::before {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(75, 163, 255, 0.28), transparent 25%),
+        linear-gradient(140deg, rgba(255, 216, 106, 0.08), rgba(75, 163, 255, 0.06));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand {
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-mark {
+      width: 84px;
+      height: 84px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 20px;
+      border-radius: 24px;
+      background: linear-gradient(150deg, rgba(255, 255, 255, 0.2), rgba(75, 163, 255, 0.08));
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-mark svg {
+      width: 52px;
+      height: 52px;
+    }
+
+    .brand-title,
+    .shell-title {
+      letter-spacing: 0.1em;
+      font-weight: 800;
+    }
+
+    .brand-title {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 5vw, 3rem);
+    }
+
+    .brand-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 34rem;
+      color: var(--silver);
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    .demo-box {
+      position: relative;
+      z-index: 1;
+      margin-top: 32px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .demo-item {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .demo-item strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent-2);
+    }
+
+    .auth-form {
+      padding: 32px;
+    }
+
+    .auth-form h2,
+    .section-title,
+    .page-header h1 {
+      margin: 0;
+      font-weight: 800;
+    }
+
+    .auth-form p {
+      color: var(--muted);
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 0.9rem;
+      color: var(--silver);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      padding: 14px 16px;
+      border-radius: 14px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: rgba(132, 216, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(132, 216, 255, 0.12);
+    }
+
+    .btn,
+    .nav-button,
+    .tab-button,
+    .mini-button {
+      cursor: pointer;
+      border: 0;
+      border-radius: 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .btn {
+      padding: 14px 18px;
+      color: #04111f;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ffffff 0%, #8cd8ff 45%, #4ba3ff 100%);
+      box-shadow: 0 12px 30px rgba(75, 163, 255, 0.34);
+    }
+
+    .btn:hover,
+    .nav-button:hover,
+    .tab-button:hover,
+    .mini-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn.secondary,
+    .mini-button,
+    .nav-button {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: none;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 126, 159, 0.08);
+      color: #ffc7d5;
+      font-size: 0.95rem;
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 250px;
+      padding: 0;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+    }
+
+    .sidebar-inner {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .logo-area {
+      padding: 20px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--gold);
+      letter-spacing: 2px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .star-icon {
+      font-size: 1.5rem;
+    }
+
+    .shell-title {
+      font-size: 1.2rem;
+    }
+
+    .menu-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      overflow-y: auto;
+    }
+
+    .nav-button,
+    .menu-item {
+      text-align: left;
+      padding: 15px 20px;
+      border-radius: 0;
+      border: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: transparent;
+    }
+
+    .menu-item {
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .nav-button.active,
+    .menu-item.active {
+      background: rgba(49, 130, 206, 0.3);
+      border-left: 4px solid var(--gold);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 20px;
+      border-top: 1px solid var(--line);
+      background: rgba(5, 11, 20, 0.28);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .top-header {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 16px;
+      min-height: 60px;
+      padding: 0 20px;
+      margin-bottom: 0;
+      background: rgba(5, 11, 20, 0.8);
+      backdrop-filter: blur(5px);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .dashboard-content {
+      padding: 20px;
+    }
+
+    .mobile-menu {
+      display: none;
+    }
+
+    .avatar {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-icon {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .page-header p,
+    .muted {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .section {
+      margin-bottom: 22px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric-card {
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .metric-card.large {
+      background:
+        radial-gradient(circle at top right, rgba(246, 173, 85, 0.18), transparent 28%),
+        var(--panel);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .metric-value {
+      margin-top: 10px;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 900;
+      color: var(--gold);
+      text-shadow: 0 0 10px rgba(246, 173, 85, 0.24);
+    }
+
+    .metric-sub {
+      margin-top: 8px;
+      color: var(--silver);
+      font-size: 0.92rem;
+    }
+
+    .timeline-list,
+    .list-grid,
+    .report-list,
+    .rank-list,
+    .team-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .timeline-card,
+    .person-card,
+    .report-card,
+    .team-card,
+    .rank-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--panel);
+    }
+
+    .timeline-card h3,
+    .person-name,
+    .rank-row strong {
+      margin: 0;
+    }
+
+    .comments {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .comment-box {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--silver);
+    }
+
+    .tabs,
+    .filter-row,
+    .stack-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tab-button {
+      padding: 10px 14px;
+      color: var(--text);
+      background: rgba(16, 33, 65, 0.7);
+      border: 1px solid var(--line);
+    }
+
+    .tab-button.active {
+      background: rgba(49, 130, 206, 0.3);
+      border-color: rgba(246, 173, 85, 0.34);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      vertical-align: top;
+    }
+
+    .clickable { cursor: pointer; }
+    .clickable:hover { color: var(--accent-2); }
+
+    .roster-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .retired { opacity: 0.48; }
+
+    .podium {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .podium-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 240px;
+      padding: 22px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .podium-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top center, rgba(255, 255, 255, 0.22), transparent 50%);
+      opacity: 0.75;
+    }
+
+    .podium-card.rank-1 {
+      background:
+        radial-gradient(circle at top center, rgba(255, 216, 106, 0.35), transparent 44%),
+        linear-gradient(180deg, rgba(255, 216, 106, 0.14), rgba(255, 255, 255, 0.04));
+    }
+
+    .podium-card.rank-2 {
+      background:
+        radial-gradient(circle at top center, rgba(214, 228, 255, 0.3), transparent 44%),
+        linear-gradient(180deg, rgba(214, 228, 255, 0.12), rgba(255, 255, 255, 0.04));
+    }
+
+    .podium-card.rank-3 {
+      background:
+        radial-gradient(circle at top center, rgba(208, 162, 123, 0.3), transparent 44%),
+        linear-gradient(180deg, rgba(208, 162, 123, 0.14), rgba(255, 255, 255, 0.04));
+    }
+
+    .rank-badge {
+      display: inline-flex;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .rank-badge.gold { color: #2b1800; background: linear-gradient(135deg, #ffeeb0, #ffd86a); }
+    .rank-badge.silver { color: #12203b; background: linear-gradient(135deg, #ffffff, #d6e4ff); }
+    .rank-badge.bronze { color: #301508; background: linear-gradient(135deg, #f3d4be, #d0a27b); }
+
+    .podium-main {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 12px;
+      justify-items: start;
+    }
+
+    .rank-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: var(--silver);
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.85rem;
+    }
+
+    .status-line {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .two-col,
+    .three-col {
+      display: grid;
+      gap: 16px;
+    }
+
+    .two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .empty {
+      padding: 20px;
+      border-radius: 18px;
+      border: 1px dashed rgba(255, 255, 255, 0.16);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .small { font-size: 0.88rem; }
+
+    .page-body { padding: 20px; }
+
+    .admin-note {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-left: 6px;
+    }
+
+    .mobile-brand {
+      display: none;
+      margin-bottom: 16px;
+    }
+
+    .user-header-actions {
+      align-items: center;
+    }
+
+    @media (max-width: 1100px) {
+      .metric-grid,
+      .podium,
+      .three-col {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .auth-card,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        height: auto;
+        width: 100%;
+        transform: translateY(100%);
+        z-index: 20;
+        transition: transform 0.25s ease;
+        border-right: none;
+        border-top: 1px solid var(--line);
+      }
+
+      .sidebar.open {
+        transform: translateY(0);
+      }
+
+      .mobile-menu {
+        display: inline-flex;
+      }
+
+      .main-content {
+        padding: 0 0 72px;
+      }
+
+      .metric-grid,
+      .podium,
+      .two-col,
+      .three-col {
+        grid-template-columns: 1fr;
+      }
+
+      .top-header,
+      .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+      }
+
+      .table {
+        display: block;
+        overflow-x: auto;
+      }
+
+      .logo-area {
+        display: none;
+      }
+
+      .menu-list {
+        display: flex;
+        overflow-x: auto;
+        margin: 0;
+        padding: 0;
+      }
+
+      .menu-item {
+        white-space: nowrap;
+        border-bottom: none;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .menu-item.active {
+        border-left: none;
+        border-top: 3px solid var(--gold);
+      }
+
+      .sidebar-footer {
+        display: none;
+      }
+
+      .dashboard-content {
+        padding: 16px;
+      }
+
+      .mobile-brand {
+        display: block;
+      }
+    }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
+<body>
+  <div id="app"></div>
+  <script>
+    const app = document.getElementById("app");
 
-    <!-- Auth Container -->
-    <div id="auth-view" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-slate-200">
-            <div class="text-center mb-10">
-                <h1 class="text-4xl font-black text-blue-900 tracking-tighter mb-2 italic">SIRIUSLINK.LOG</h1>
-                <p class="text-slate-500 font-bold">営業管理システム ログイン</p>
-            </div>
-            <div id="login-error" class="hidden mb-6 text-red-500 text-center font-bold text-sm bg-red-50 p-3 rounded-xl"></div>
-            <form id="login-form" class="space-y-6">
-                <div class="space-y-2">
-                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">ID (メールアドレス)</label>
-                    <input type="email" id="email" class="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all font-bold" value="kannrisya@gmail.com" required>
-                </div>
-                <div class="space-y-2">
-                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">パスワード</label>
-                    <input type="password" id="password" class="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all font-bold" value="kannrisya" required>
-                </div>
-                <button type="submit" class="w-full bg-blue-900 text-white py-5 rounded-2xl font-black shadow-xl hover:bg-blue-800 active:scale-95 transition-all text-lg tracking-widest italic">ログイン</button>
-            </form>
-            <div class="mt-8 pt-6 border-t border-slate-100 text-[10px] text-slate-400 text-center uppercase tracking-widest font-bold">
-                デモ用: kannrisya@gmail.com / staff@gmail.com
-            </div>
+    const state = {
+      token: localStorage.getItem("sirius_token") || "",
+      user: null,
+      data: null,
+      page: "timeline",
+      mobileMenuOpen: false,
+      notice: "",
+      profileTargetId: null,
+      overallMode: "month",
+      overallMonth: currentMonthValue(),
+      overallQuarter: currentQuarterValue(),
+      rankingMode: "month",
+      rankingMonth: currentMonthValue(),
+      rankingQuarter: currentQuarterValue(),
+      rankingCategory: "apoComplete",
+      teamRankingCategory: "apoComplete",
+      reportTab: "appointment",
+      historyMonth: currentMonthValue(),
+      closingHistoryMonth: currentMonthValue(),
+      profileRange: defaultRange(),
+      lastTimelineIds: JSON.parse(localStorage.getItem("sirius_timeline_seen") || "[]")
+    };
+
+    const pageLabels = {
+      timeline: "タイムライン",
+      overall: "全体営業成績",
+      rankingIndividual: "営業成績ランキング（個人）",
+      rankingTeam: "営業成績ランキング（チーム）",
+      profile: "個人プロフィール",
+      reports: "日報・商談報告",
+      systemError: "システムエラー報告",
+      history: "履歴",
+      roster: "スタッフ名簿",
+      teams: "チーム登録"
+    };
+
+    const individualRankingOptions = [
+      { key: "apoComplete", label: "アポイント 完工数ランキング" },
+      { key: "apoMeeting", label: "アポイント 商談数ランキング" },
+      { key: "apoCount", label: "アポイント アポ数ランキング" },
+      { key: "pingPong", label: "アポイント ピンポン数ランキング" },
+      { key: "pingPongCompletion", label: "アポイント ピンポン完工率ランキング" },
+      { key: "closerComplete", label: "クロージング 完工数ランキング" },
+      { key: "closerCompletionRate", label: "クロージング 商談完工率ランキング" },
+      { key: "closerCancelRate", label: "クロージング キャンセル率ランキング" }
+    ];
+
+    const teamRankingOptions = [
+      { key: "apoComplete", label: "チーム アポイント完工数ランキング" },
+      { key: "apoMeeting", label: "チーム 商談数ランキング" },
+      { key: "apoCount", label: "チーム アポ数ランキング" },
+      { key: "pingPong", label: "チーム ピンポン数ランキング" },
+      { key: "pingPongCompletion", label: "チーム ピンポン完工率ランキング" },
+      { key: "closerComplete", label: "チーム クロ完工数ランキング" },
+      { key: "closerCompletionRate", label: "チーム 商談完工率ランキング" },
+      { key: "closerCancelRate", label: "チーム キャンセル率ランキング" }
+    ];
+
+    init();
+
+    async function init() {
+      if (state.token) {
+        const ok = await refreshData();
+        if (!ok) {
+          state.token = "";
+          localStorage.removeItem("sirius_token");
+        }
+      }
+
+      render();
+
+      if (state.token) {
+        startPolling();
+      }
+    }
+
+    function currentMonthValue() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function currentQuarterValue() {
+      const now = new Date();
+      const quarter = Math.floor(now.getMonth() / 3) + 1;
+      return `${now.getFullYear()}-Q${quarter}`;
+    }
+
+    function defaultRange() {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return {
+        start: dateValue(start),
+        end: dateValue(now)
+      };
+    }
+
+    function dateValue(date) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function starLogo() {
+      return `
+        <div class="brand-mark">
+          <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path d="M32 4L37.6 21.2L55 26.8L37.6 32.4L32 60L26.4 32.4L9 26.8L26.4 21.2L32 4Z" fill="url(#g1)"></path>
+            <path d="M49 8L51.2 14.8L58 17L51.2 19.2L49 26L46.8 19.2L40 17L46.8 14.8L49 8Z" fill="url(#g2)"></path>
+            <defs>
+              <linearGradient id="g1" x1="8" y1="8" x2="52" y2="56">
+                <stop stop-color="#FFFFFF"></stop>
+                <stop offset="0.5" stop-color="#84D8FF"></stop>
+                <stop offset="1" stop-color="#4BA3FF"></stop>
+              </linearGradient>
+              <linearGradient id="g2" x1="40" y1="8" x2="58" y2="26">
+                <stop stop-color="#FFF1BC"></stop>
+                <stop offset="1" stop-color="#FFD86A"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
-    </div>
+      `;
+    }
 
-    <!-- App Container -->
-    <div id="app-view" class="hidden min-h-screen flex flex-col md:flex-row">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 z-[70] w-72 bg-slate-950 text-slate-100 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl">
-            <div class="p-8">
-                <h1 class="text-2xl font-black tracking-tighter text-white italic">SIRIUSLINK.LOG</h1>
-            </div>
-            <nav id="sidebar-nav" class="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
-                <!-- Nav items generated via JS -->
-            </nav>
-            <div class="p-6 bg-slate-900/40 mt-4 border-t border-white/5">
-                <div class="flex items-center space-x-4 mb-6 px-2">
-                    <img id="user-avatar" src="" class="w-12 h-12 rounded-2xl border-2 border-white/10 object-cover" alt="me">
-                    <div class="overflow-hidden">
-                        <p id="user-name" class="text-sm font-black truncate"></p>
-                        <p id="user-role-label" class="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-1"></p>
-                    </div>
+    function render() {
+      app.innerHTML = state.token && state.data ? renderApp() : renderLogin();
+      bindEvents();
+    }
+
+    function renderLogin() {
+      return `
+        <div class="auth-shell">
+          <div class="auth-card">
+            <section class="auth-hero">
+              <div class="brand">
+                ${starLogo()}
+                <h1 class="brand-title">SIRIUSLINK.LOG</h1>
+                <p class="brand-copy">
+                  営業成績の一元化に特化した、スタイリッシュな営業管理システム。契約タイムライン、全体分析、豪華なランキング、プロフィール管理、日報と商談の連動をひとつにまとめています。
+                </p>
+                <div class="demo-box">
+                  <div class="demo-item">
+                    <strong>管理者デモ</strong>
+                    ID: kannrisya@gmail.com<br />
+                    PASS: kannrisya
+                  </div>
+                  <div class="demo-item">
+                    <strong>スタッフデモ</strong>
+                    ID: staff@gmail.com<br />
+                    PASS: staff
+                  </div>
                 </div>
-                <button id="logout-btn" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-2xl transition-all font-bold text-xs">
-                    <span>ログアウト</span>
-                </button>
-            </div>
-        </aside>
-
-        <!-- Sidebar Overlay (Mobile) -->
-        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] md:hidden"></div>
-
-        <!-- Content Area -->
-        <main class="flex-1 md:ml-72 p-4 md:p-10 min-h-screen">
-            <!-- Mobile Header -->
-            <div class="md:hidden flex justify-between items-center mb-6">
-                <h1 class="text-xl font-black italic tracking-tighter">SIRIUSLINK.LOG</h1>
-                <button id="mobile-menu-btn" class="p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-900 font-bold">MENU</button>
-            </div>
-
-            <!-- Desktop Header -->
-            <header class="hidden md:flex justify-between items-center mb-10 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-                <h2 id="view-title" class="text-2xl font-black text-slate-800 italic">タイムライン</h2>
-                <div class="flex items-center space-x-6 text-right">
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Signed in as</p>
-                        <p id="header-user-name" class="text-sm font-black text-blue-900 leading-none"></p>
-                    </div>
-                    <div class="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 relative">
-                        <span class="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                    </div>
+              </div>
+            </section>
+            <section class="auth-form">
+              <h2>ログイン</h2>
+              <p>メールアドレスとパスワードでアクセスできます。</p>
+              <form id="login-form" class="field-grid">
+                <div class="field">
+                  <label for="login-email">メールアドレス</label>
+                  <input id="login-email" name="email" type="email" value="kannrisya@gmail.com" required />
                 </div>
-            </header>
-
-            <div id="main-content" class="max-w-6xl mx-auto animate-fade-in">
-                <!-- Content generated via JS -->
-            </div>
-        </main>
-    </div>
-
-    <!-- Custom Toast -->
-    <div id="toast" class="hidden fixed top-6 right-6 z-[100] transform transition-transform duration-300">
-        <div id="toast-body" class="px-6 py-4 rounded-2xl shadow-2xl border flex items-center space-x-3 bg-blue-900 border-blue-800 text-white">
-            <span id="toast-message" class="font-bold"></span>
+                <div class="field">
+                  <label for="login-password">パスワード</label>
+                  <input id="login-password" name="password" type="password" value="kannrisya" required />
+                </div>
+                <button class="btn" type="submit">SIRIUSLINK.LOG に入る</button>
+              </form>
+              ${state.notice ? `<div class="message">${escapeHtml(state.notice)}</div>` : ""}
+            </section>
+          </div>
         </div>
-    </div>
+      `;
+    }
 
-    <script>
-        // --- Core State ---
-        let currentUser = null;
-        let activeTab = 'timeline';
+    function visiblePages() {
+      const common = [
+        "timeline",
+        "overall",
+        "rankingIndividual",
+        "rankingTeam",
+        "profile",
+        "reports",
+        "systemError"
+      ];
+      if (state.user?.permission === "admin") {
+        common.push("history", "roster", "teams");
+      }
+      return common;
+    }
 
-        const users = [
-            { id: 'u1', email: 'kannrisya@gmail.com', password: 'kannrisya', name: '内田 健太', furigana: 'ウチダ ケンタ', role: 'admin', gender: '男性', birthday: '1988-04-12', joinDate: '2021-01-01', organization: 'SIRIUSLINK', team: '山路優チーム', position: 'クローザー', bio: '全速前進！', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', active: true },
-            { id: 'u2', email: 'staff@gmail.com', password: 'staff', name: '田中 太郎', furigana: 'タナカ タロウ', role: 'staff', gender: '男性', birthday: '1995-08-20', joinDate: '2023-05-15', organization: '西河はるや', team: '磯和美優チーム', position: 'アポインター', bio: '一意専心。', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', active: true }
-        ];
+    function renderApp() {
+      const pages = visiblePages();
+      if (!pages.includes(state.page)) {
+        state.page = pages[0];
+      }
 
-        const reports = [
-            { id: 'r1', type: 'appoint', userId: 'u2', userName: '田中 太郎', date: '2023-11-01', mode: '通常対応', pingpong: 120, response: 60, inKick: 15, doorKick: 8, outOfScope: 5, approach: 20, apo: 4 },
-            { id: 'r2', type: 'closing', date: '2023-11-02', appointUserId: 'u2', appointUserName: '田中 太郎', closerUserId: 'u1', closerUserName: '内田 健太', commentWriterId: 'u1', commentWriterName: '内田 健太', clientName: 'サトウ', status: '完工', commentToApo: '非常に丁寧なヒアリングがされており、現場での話がスムーズでした。お客様も大変満足されています。', commentToCloser: '迅速なクロージングでした。', timestamp: new Date().toISOString() }
-        ];
-
-        // --- Helpers ---
-        const getAge = (bday) => {
-            const birthDate = new Date(bday);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-            return age;
-        };
-
-        const getActivityPeriod = (joinDate) => {
-            const start = new Date(joinDate);
-            const end = new Date();
-            let years = end.getFullYear() - start.getFullYear();
-            let months = end.getMonth() - start.getMonth() + 1;
-            if (months <= 0) { years--; months += 12; }
-            return years > 0 ? `${years}年${months}ヶ月目` : `${months}ヶ月目`;
-        };
-
-        const formatPercent = (val) => isNaN(val) || !isFinite(val) ? '0%' : `${Math.round(val)}%`;
-
-        const showToast = (msg, type = 'success') => {
-            const toast = document.getElementById('toast');
-            const body = document.getElementById('toast-body');
-            document.getElementById('toast-message').textContent = msg;
-            body.className = `px-6 py-4 rounded-2xl shadow-2xl border flex items-center space-x-3 ${type === 'success' ? 'bg-blue-900 border-blue-800' : 'bg-red-600 border-red-500'} text-white`;
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 3000);
-        };
-
-        // --- Auth Functions ---
-        const handleLogin = (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
-            const user = users.find(u => u.email === email && u.password === pass);
-            
-            if (user) {
-                currentUser = user;
-                document.getElementById('auth-view').classList.add('hidden');
-                document.getElementById('app-view').classList.remove('hidden');
-                initApp();
-            } else {
-                const err = document.getElementById('login-error');
-                err.textContent = "IDまたはパスワードが間違っています。";
-                err.classList.remove('hidden');
-            }
-        };
-
-        const handleLogout = () => {
-            currentUser = null;
-            document.getElementById('app-view').classList.add('hidden');
-            document.getElementById('auth-view').classList.remove('hidden');
-            document.getElementById('login-form').reset();
-            document.getElementById('login-error').classList.add('hidden');
-        };
-
-        // --- View Rendering ---
-        const initApp = () => {
-            document.getElementById('user-avatar').src = currentUser.image;
-            document.getElementById('user-name').textContent = currentUser.name;
-            document.getElementById('header-user-name').textContent = currentUser.name;
-            document.getElementById('user-role-label').textContent = currentUser.role === 'admin' ? '管理者' : 'スタッフ';
-            renderSidebar();
-            renderContent();
-        };
-
-        const renderSidebar = () => {
-            const nav = document.getElementById('sidebar-nav');
-            const items = [
-                { id: 'timeline', label: 'タイムライン', adminOnly: false },
-                { id: 'overall', label: '全体営業成績', adminOnly: false },
-                { id: 'ranking', label: '営業成績ランキング', adminOnly: false },
-                { id: 'profile', label: '個人プロフィール', adminOnly: false },
-                { id: 'report', label: '日報・商談報告', adminOnly: false },
-                { id: 'error', label: 'システムエラー報告', adminOnly: false },
-                { id: 'history', label: '履歴', adminOnly: true },
-                { id: 'staff', label: 'スタッフ名簿', adminOnly: true }
-            ];
-
-            nav.innerHTML = items.map(item => {
-                if (item.adminOnly && currentUser.role !== 'admin') return '';
-                const isActive = activeTab === item.id;
-                return `
-                    <button onclick="switchTab('${item.id}')" class="w-full flex items-center space-x-3 px-5 py-4 rounded-2xl transition-all duration-200 ${isActive ? 'sidebar-active' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
-                        <span class="font-black text-sm">${item.label}</span>
-                    </button>
-                `;
-            }).join('');
-        };
-
-        const switchTab = (tabId) => {
-            activeTab = tabId;
-            document.getElementById('sidebar-overlay').classList.add('hidden');
-            document.getElementById('sidebar').classList.add('-translate-x-full');
-            document.getElementById('sidebar').classList.remove('translate-x-0');
-            renderSidebar();
-            renderContent();
-            
-            const titles = {
-                timeline: 'タイムライン', overall: '全体営業成績', ranking: '営業成績ランキング',
-                profile: '個人プロフィール', report: '日報・商談報告', error: 'システムエラー報告',
-                history: '履歴 (管理者用)', staff: 'スタッフ名簿'
-            };
-            document.getElementById('view-title').textContent = titles[tabId];
-        };
-
-        const renderContent = () => {
-            const container = document.getElementById('main-content');
-            container.innerHTML = '';
-
-            switch (activeTab) {
-                case 'timeline': renderTimeline(container); break;
-                case 'overall': renderOverall(container); break;
-                case 'ranking': renderRanking(container); break;
-                case 'profile': renderProfile(container); break;
-                case 'report': renderReport(container); break;
-                case 'error': renderErrorView(container); break;
-                case 'history': renderHistory(container); break;
-                case 'staff': renderStaffList(container); break;
-            }
-        };
-
-        const renderTimeline = (container) => {
-            const events = reports
-                .filter(r => r.type === 'closing' && (r.status === '契約' || r.status === '完工'))
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .slice(0, 10);
-
-            container.innerHTML = `
-                <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-                    <h3 class="text-xl font-black text-slate-800 mb-10 flex items-center italic">最新の成約タイムライン</h3>
-                    <div class="space-y-8">
-                        ${events.length === 0 ? '<p class="text-slate-400 text-center py-12">現在成約情報はありません</p>' : events.map(ev => `
-                            <div class="relative pl-8 border-l-4 border-blue-500 py-2">
-                                <div class="absolute -left-3 top-0 w-5 h-5 bg-blue-500 rounded-full border-4 border-white shadow-md"></div>
-                                <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 hover:shadow-lg transition-shadow">
-                                    <p class="text-blue-700 font-black text-lg mb-4">🎉 ご契約おめでとうございます！</p>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
-                                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">契約日時</p><p class="font-bold">${new Date(ev.timestamp).toLocaleString()}</p></div>
-                                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">顧客名</p><p class="font-bold">${ev.clientName}様案件</p></div>
-                                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">アポインター</p><p class="font-bold">${ev.appointUserName}</p></div>
-                                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">クローザー</p><p class="font-bold">${ev.closerUserName}</p></div>
-                                    </div>
-                                    <div class="space-y-4 pt-4 border-t border-slate-200 italic">
-                                        <div class="bg-white p-4 rounded-2xl border border-slate-100">
-                                            <p class="text-[10px] font-black text-blue-600 not-italic mb-1">${ev.commentWriterName}から${ev.appointUserName}さんへのコメント：</p>
-                                            <p class="text-sm text-slate-600">「${ev.commentToApo}」</p>
-                                        </div>
-                                        ${ev.commentToCloser ? `
-                                        <div class="bg-white p-4 rounded-2xl border border-slate-100">
-                                            <p class="text-[10px] font-black text-indigo-600 not-italic mb-1">${ev.commentWriterName}から${ev.closerUserName}さんへのコメント：</p>
-                                            <p class="text-sm text-slate-600">「${ev.commentToCloser}」</p>
-                                        </div>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
+      return `
+        <div class="app-shell">
+          <aside class="sidebar ${state.mobileMenuOpen ? "open" : ""}">
+            <div class="sidebar-inner">
+              <div class="logo-area">
+                <span class="star-icon">✨</span>
+                <span class="shell-title">SIRIUSLINK.LOG</span>
+              </div>
+              <ul class="menu-list">
+                ${pages.map((page) => `
+                  <li class="menu-item ${state.page === page ? "active" : ""}" data-page="${page}">
+                    ${page === "rankingIndividual" ? "個人ランキング" : page === "rankingTeam" ? "チームランキング" : pageLabels[page]}
+                    ${(page === "history" || page === "roster" || page === "teams") ? `<span class="admin-note">(管理者)</span>` : ""}
+                  </li>
+                `).join("")}
+              </ul>
+              <div class="sidebar-footer">
+                <div>保存先はサーバー側データストアです。</div>
+                <div class="status-line">ブラウザ通知は契約入力を検知して表示します。</div>
+              </div>
+            </div>
+          </aside>
+          <main class="main-content">
+            <div class="top-header">
+              <div class="stack-row user-header-actions">
+                <button class="nav-button mobile-menu" data-action="toggle-menu">メニュー</button>
+                <button class="mini-button" data-action="notifications">通知許可</button>
+                <button class="mini-button" data-action="logout">ログアウト</button>
+                <div class="user-info">
+                  <span>ログイン中: ${escapeHtml(state.user.nameKanji)} (${state.user.permission === "admin" ? "管理者" : "スタッフ"})</span>
+                  <div class="user-icon">${(state.user.nameKanji || "?").slice(0, 1)}</div>
                 </div>
-            `;
-        };
+              </div>
+            </div>
+            <div class="dashboard-content page-body">
+              <div class="mobile-brand">
+                <div class="shell-title">SIRIUSLINK.LOG</div>
+                <div class="small muted">${escapeHtml(pageLabels[state.page])}</div>
+              </div>
+              ${renderPage()}
+            </div>
+          </main>
+        </div>
+      `;
+    }
 
-        const renderOverall = (container) => {
-            const stats = calculateStats();
-            container.innerHTML = `
-                <div class="space-y-8">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-blue-950 text-white p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col justify-center">
-                           <div class="flex justify-between items-center mb-8 relative z-10">
-                              <div><p class="text-blue-300 text-[10px] font-black uppercase tracking-widest mb-1">Total Sales</p><p class="text-5xl font-black">${stats.totalSales}<span class="text-lg ml-1 opacity-50">万</span></p></div>
-                              <div class="text-right"><p class="text-blue-300 text-[10px] font-black uppercase tracking-widest mb-1">Completed</p><p class="text-5xl font-black">${stats.totalCompletion}<span class="text-lg ml-1 opacity-50">件</span></p></div>
-                           </div>
-                           <div class="h-1 bg-white/10 rounded-full overflow-hidden relative z-10"><div class="w-[75%] h-full bg-blue-500"></div></div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-6">
-                            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
-                                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">完工率</p>
-                                <p class="text-4xl font-black text-blue-600">${formatPercent((stats.totalCompletion / stats.totalPingPong) * 100)}</p>
-                            </div>
-                            <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
-                                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">平均PP</p>
-                                <p class="text-4xl font-black text-blue-600">${Math.round(stats.totalPingPong / (stats.totalAttendance || 1))}<span class="text-sm font-bold ml-1">件/日</span></p>
-                            </div>
-                        </div>
-                    </div>
+    function renderAvatar(person, className = "avatar") {
+      if (person?.profileImage) {
+        return `<div class="${className}"><img src="${person.profileImage}" alt="${escapeHtml(person.nameKanji)}" /></div>`;
+      }
+      const label = (person?.nameKanji || "?").slice(0, 1);
+      return `<div class="${className}">${escapeHtml(label)}</div>`;
+    }
 
-                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                        ${[
-                            { label: '出勤数', val: stats.totalAttendance, unit: '日' },
-                            { label: 'PP数', val: stats.totalPingPong, unit: '回' },
-                            { label: 'アポ数', val: stats.totalApo, unit: '件' },
-                            { label: '商談数', val: stats.totalNegotiation, unit: '件' },
-                            { label: '契約数', val: stats.totalContracts, unit: '件' },
-                            { label: '対応数', val: stats.totalResponse, unit: '件' },
-                            { label: '対象外', val: stats.totalOutOfScope, unit: '件' }
-                        ].map(item => `
-                            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
-                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2">${item.label}</p>
-                                <p class="text-xl font-black text-slate-800">${item.val}<span class="text-[10px] opacity-40 ml-0.5">${item.unit}</span></p>
-                            </div>
-                        `).join('')}
-                    </div>
+    function renderPage() {
+      switch (state.page) {
+        case "timeline":
+          return renderTimelinePage();
+        case "overall":
+          return renderOverallPage();
+        case "rankingIndividual":
+          return renderIndividualRankingPage();
+        case "rankingTeam":
+          return renderTeamRankingPage();
+        case "profile":
+          return renderProfilePage();
+        case "reports":
+          return renderReportsPage();
+        case "systemError":
+          return renderSystemErrorPage();
+        case "history":
+          return renderHistoryPage();
+        case "roster":
+          return renderRosterPage();
+        case "teams":
+          return renderTeamsPage();
+        default:
+          return "";
+      }
+    }
 
-                    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                        <div class="p-8 border-b border-slate-50"><h4 class="font-black text-slate-800 text-lg italic">スタッフ別成績一覧</h4></div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead class="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-widest">
-                                    <tr><th class="px-10 py-6">氏名</th><th class="px-4 py-6">出勤</th><th class="px-4 py-6">PP数</th><th class="px-4 py-6">アポ数</th><th class="px-4 py-6 text-blue-600">アポ完工</th></tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    ${users.map(u => {
-                                        const s = stats.staffStats[u.id] || { attendance: 0, pingpong: 0, apo: 0, apoCompletion: 0 };
-                                        return `
-                                            <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="switchTab('profile')">
-                                                <td class="px-10 py-6"><div class="flex items-center space-x-4"><img src="${u.image}" class="w-10 h-10 rounded-xl object-cover shadow-sm"><span class="font-black text-slate-800">${u.name}</span></div></td>
-                                                <td class="px-4 py-6 font-bold text-slate-500">${s.attendance}日</td>
-                                                <td class="px-4 py-6 font-bold text-slate-500">${s.pingpong.toLocaleString()}</td>
-                                                <td class="px-4 py-6 font-black text-slate-800">${s.apo}件</td>
-                                                <td class="px-4 py-6 font-black text-blue-600">${s.apoCompletion}件</td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+    function activeStaffOnly() {
+      return state.data.staff.filter((item) => !item.retiredAt);
+    }
+
+    function getStaff(id) {
+      return state.data.staff.find((item) => item.id === id);
+    }
+
+    function getTeam(id) {
+      return state.data.teams.find((item) => item.id === id);
+    }
+
+    function buildTimelineItems() {
+      return [...state.data.closingReports]
+        .filter((report) => report.result === "contract" || report.result === "complete")
+        .sort((a, b) => new Date(b.meetingDate) - new Date(a.meetingDate))
+        .slice(0, 10)
+        .map((report) => {
+          const appointmenter = getStaff(report.appointmenterId);
+          const closer = getStaff(report.closerId);
+          const commenter = getStaff(report.commenterId);
+          return {
+            id: report.id,
+            date: formatDateTime(report.meetingDate),
+            appointmenter,
+            closer,
+            commenter,
+            customerName: report.customerName,
+            appointmenterComment: report.appointmenterComment,
+            closerComment: report.closerComment
+          };
+        });
+    }
+
+    function renderTimelinePage() {
+      const items = buildTimelineItems();
+      return `
+        <section class="page-header">
+          <div>
+            <h1>タイムライン</h1>
+            <p>日報・商談報告から契約案件のみを抽出し、直近10件まで表示します。</p>
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-header">
+            <div class="section-title">最新契約タイムライン</div>
+            <span class="pill">${items.length}件</span>
+          </div>
+          <div class="timeline-list">
+            ${items.length ? items.map((item) => `
+              <article class="timeline-card">
+                <h3>ご契約おめでとうございます！</h3>
+                <div class="status-line">${escapeHtml(item.date)}</div>
+                <div class="comments">
+                  <div class="comment-box">アポインター名：${escapeHtml(item.appointmenter?.nameKanji || "-")}</div>
+                  <div class="comment-box">クローザー名：${escapeHtml(item.closer?.nameKanji || "-")}</div>
+                  <div class="comment-box">顧客名：${escapeHtml(item.customerName)}様案件</div>
+                  <div class="comment-box">${escapeHtml(item.commenter?.nameKanji || "-")} から ${escapeHtml(item.appointmenter?.nameKanji || "-")} さんへのコメント：${escapeHtml(item.appointmenterComment || "コメントなし")}</div>
+                  <div class="comment-box">${escapeHtml(item.commenter?.nameKanji || "-")} から ${escapeHtml(item.closer?.nameKanji || "-")} さんへのコメント：${escapeHtml(item.closerComment || "コメントなし")}</div>
                 </div>
-            `;
-        };
+              </article>
+            `).join("") : `<div class="empty">契約タイムラインはまだありません。</div>`}
+          </div>
+        </section>
+      `;
+    }
 
-        const renderRanking = (container) => {
-            container.innerHTML = `
-                <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100">
-                    <h3 class="text-2xl font-black text-slate-800 mb-10 italic">営業成績ランキング</h3>
-                    <div class="space-y-4">
-                        ${users.sort((a,b) => b.id.localeCompare(a.id)).map((u, i) => `
-                            <div class="flex items-center p-6 bg-white rounded-3xl border border-slate-50 hover:shadow-lg transition-all">
-                                <div class="w-12 h-12 flex items-center justify-center font-black rounded-2xl mr-6 bg-slate-100 text-slate-300 ${i===0?'bg-yellow-400 text-white':''}">${i+1}</div>
-                                <img src="${u.image}" class="w-14 h-14 rounded-3xl mr-6 object-cover shadow-md">
-                                <div class="flex-1"><p class="font-black text-lg">${u.name}</p><p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">${u.team}</p></div>
-                                <div class="text-right font-black text-3xl text-blue-900">${Math.floor(Math.random()*10)}<span class="text-sm ml-1 text-slate-400">件</span></div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        };
+    function renderOverallPage() {
+      const label = state.overallMode === "month" ? monthLabel(state.overallMonth) : quarterLabel(state.overallQuarter);
+      const stats = buildOverallStats(selectedPeriod(state.overallMode, state.overallMonth, state.overallQuarter));
+      const staffRows = activeStaffOnly()
+        .sort(staffSorter)
+        .map((staff) => {
+          const personStats = buildPersonStats(staff.id, selectedPeriod(state.overallMode, state.overallMonth, state.overallQuarter));
+          return `
+            <tr>
+              <td class="clickable" data-open-profile="${staff.id}">${escapeHtml(staff.nameKanji)}</td>
+              <td>${renderAvatar(staff, "avatar")}</td>
+              <td>${formatNumber(personStats.attendanceDays)}</td>
+              <td>${personStats.pingPong}</td>
+              <td>${personStats.responses}</td>
+              <td>${personStats.inKick}</td>
+              <td>${personStats.doorKick}</td>
+              <td>${personStats.excluded}</td>
+              <td>${personStats.approach}</td>
+              <td>${personStats.appointments}</td>
+              <td>${personStats.totalMeetings}</td>
+              <td>${personStats.apoContracts}</td>
+              <td>${personStats.closerContracts}</td>
+              <td>${personStats.apoComplete}</td>
+              <td>${personStats.closerComplete}</td>
+            </tr>
+          `;
+        }).join("");
 
-        const renderProfile = (container) => {
-            container.innerHTML = `
-                <div class="space-y-8">
-                    <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 relative overflow-hidden">
-                        <div class="flex flex-col md:flex-row items-center md:items-start space-y-8 md:space-y-0 md:space-x-12 relative z-10">
-                            <img src="${currentUser.image}" class="w-48 h-48 rounded-[3rem] object-cover shadow-2xl border-4 border-white">
-                            <div class="flex-1">
-                                <div class="mb-8"><span class="text-slate-400 text-xs font-black tracking-widest uppercase italic">${currentUser.furigana}</span><h3 class="text-4xl font-black text-slate-800 tracking-tight mt-1">${currentUser.name}</h3></div>
-                                <div class="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-12 mb-10 max-w-3xl">
-                                    <div><p class="text-[10px] text-slate-400 font-black mb-1">活動期間</p><p class="font-black">${getActivityPeriod(currentUser.joinDate)}</p></div>
-                                    <div><p class="text-[10px] text-slate-400 font-black mb-1">年齢</p><p class="font-black">${getAge(currentUser.birthday)}歳</p></div>
-                                    <div><p class="text-[10px] text-slate-400 font-black mb-1">所属</p><p class="font-black">${currentUser.organization}</p></div>
-                                    <div><p class="text-[10px] text-slate-400 font-black mb-1">チーム</p><p class="font-black">${currentUser.team}</p></div>
-                                    <div><p class="text-[10px] text-slate-400 font-black mb-1">役職</p><p class="font-black">${currentUser.position}</p></div>
-                                </div>
-                                <div class="max-w-md">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">一言</label>
-                                    <input value="${currentUser.bio}" class="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-blue-500">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
+      return `
+        <section class="page-header">
+          <div>
+            <h1>${escapeHtml(label)} 全体営業成績</h1>
+            <p>日報・商談報告が入力された時点で統計を反映します。</p>
+          </div>
+          <div class="tabs">
+            <button class="tab-button ${state.overallMode === "month" ? "active" : ""}" data-overall-mode="month">月毎</button>
+            <button class="tab-button ${state.overallMode === "quarter" ? "active" : ""}" data-overall-mode="quarter">クール毎</button>
+            ${state.overallMode === "month"
+              ? `<input type="month" id="overall-month" value="${state.overallMonth}" />`
+              : `<select id="overall-quarter">${quarterOptions(state.overallQuarter)}</select>`}
+          </div>
+        </section>
+        <section class="section">
+          <div class="metric-grid">
+            ${metricCard("総売上", `${formatNumber(stats.totalSales)}万`, "large")}
+            ${metricCard("総完工数", `${stats.totalComplete}件`, "large")}
+            ${metricCard("ピンポン完工率", `${formatPercent(stats.pingPongCompletionRate)}`, "large")}
+            ${metricCard("1日あたり平均ピンポン数", `${formatNumber(stats.avgPingPongPerAttendance)}件`, "large")}
+            ${metricCard("総出勤数", `${formatNumber(stats.attendanceDays)}日`)}
+            ${metricCard("総ピンポン数", `${stats.totalPingPong}`)}
+            ${metricCard("総対応数", `${stats.totalResponses}`)}
+            ${metricCard("総インキック数", `${stats.totalInKick}`)}
+            ${metricCard("総ドアキック数", `${stats.totalDoorKick}`)}
+            ${metricCard("総対象外数", `${stats.totalExcluded}`)}
+            ${metricCard("総アプ数", `${stats.totalApproach}`)}
+            ${metricCard("総アポ数", `${stats.totalAppointments}`)}
+            ${metricCard("総商談数", `${stats.totalMeetings}`)}
+            ${metricCard("総契約数", `${stats.totalContracts}`)}
+            ${metricCard("総アポ契約数", `${stats.totalApoContracts}`)}
+            ${metricCard("総クロ契約数", `${stats.totalCloserContracts}`)}
+            ${metricCard("総アポ完工数", `${stats.totalApoComplete}`)}
+            ${metricCard("総クロ完工数", `${stats.totalCloserComplete}`)}
+            ${metricCard("ピンポン対応率", formatPercent(stats.pingPongResponseRate))}
+            ${metricCard("対応インキック率", formatPercent(stats.responseInKickRate))}
+            ${metricCard("対応アポ率", formatPercent(stats.responseAppointmentRate))}
+            ${metricCard("アプアポ率", formatPercent(stats.approachAppointmentRate))}
+            ${metricCard("アポ商談率", formatPercent(stats.appointmentMeetingRate))}
+            ${metricCard("商談完工率", formatPercent(stats.meetingCompletionRate))}
+            ${metricCard("キャンセル率", `${formatPercent(stats.cancelRate)}<div class="metric-sub">25％以下を維持</div>`, "large")}
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-header">
+            <div class="section-title">営業スタッフ別成績表一覧</div>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>スタッフ名</th>
+                <th>画像</th>
+                <th>出勤数</th>
+                <th>ピンポン</th>
+                <th>対応</th>
+                <th>インキック</th>
+                <th>ドアキック</th>
+                <th>対象外</th>
+                <th>アプ</th>
+                <th>アポ</th>
+                <th>商談</th>
+                <th>アポ契約</th>
+                <th>クロ契約</th>
+                <th>アポ完工</th>
+                <th>クロ完工</th>
+              </tr>
+            </thead>
+            <tbody>${staffRows || `<tr><td colspan="15">表示できるスタッフがいません。</td></tr>`}</tbody>
+          </table>
+        </section>
+      `;
+    }
 
-        const renderReport = (container) => {
-            const isAdmin = currentUser.role === 'admin';
-            container.innerHTML = `
-                <div class="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                    <div class="flex bg-slate-50 border-b border-slate-50 p-2">
-                        <button onclick="switchReportType('appoint')" id="tab-appo" class="flex-1 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest bg-blue-900 text-white shadow-xl">アポイント報告</button>
-                        ${isAdmin ? `<button onclick="switchReportType('closing')" id="tab-clo" class="flex-1 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest text-slate-400">クロージング報告</button>` : ''}
-                    </div>
-                    <div id="report-form-container" class="p-10 md:p-14 animate-fade-in">
-                        ${renderAppoForm()}
-                    </div>
+    function renderIndividualRankingPage() {
+      const label = state.rankingMode === "month" ? monthLabel(state.rankingMonth) : quarterLabel(state.rankingQuarter);
+      const rankings = buildIndividualRanking(state.rankingCategory, selectedPeriod(state.rankingMode, state.rankingMonth, state.rankingQuarter));
+      const topThree = rankings.slice(0, 3);
+      const rest = rankings.slice(3);
+      const currentLabel = individualRankingOptions.find((item) => item.key === state.rankingCategory)?.label || "";
+      return `
+        <section class="page-header">
+          <div>
+            <h1>${escapeHtml(label)} ${escapeHtml(currentLabel)}</h1>
+            <p>1位、2位、3位を豪華なポディウムで表示し、その下に全順位を並べます。</p>
+          </div>
+          <div class="tabs">
+            <button class="tab-button ${state.rankingMode === "month" ? "active" : ""}" data-ranking-mode="month">月毎</button>
+            <button class="tab-button ${state.rankingMode === "quarter" ? "active" : ""}" data-ranking-mode="quarter">クール毎</button>
+            ${state.rankingMode === "month"
+              ? `<input type="month" id="ranking-month" value="${state.rankingMonth}" />`
+              : `<select id="ranking-quarter">${quarterOptions(state.rankingQuarter)}</select>`}
+          </div>
+        </section>
+        <section class="section">
+          <div class="tabs">
+            ${individualRankingOptions.map((item) => `<button class="tab-button ${state.rankingCategory === item.key ? "active" : ""}" data-ranking-category="${item.key}">${item.label}</button>`).join("")}
+          </div>
+          <div class="podium">
+            ${[0, 1, 2].map((index) => renderPodiumCard(topThree[index], index + 1)).join("")}
+          </div>
+          <div class="rank-list">
+            ${rest.length ? rest.map((entry, index) => `
+              <div class="rank-row">
+                <div class="rank-badge">${index + 4}位</div>
+                <div class="stack-row">
+                  ${renderAvatar(entry.person)}
+                  <div>
+                    <strong class="clickable" data-open-profile="${entry.person.id}">${escapeHtml(entry.person.nameKanji)}</strong>
+                    <div class="small muted">${escapeHtml(entry.meta)}</div>
+                  </div>
                 </div>
-            `;
-        };
+                <strong>${escapeHtml(entry.displayValue)}</strong>
+              </div>
+            `).join("") : `<div class="empty">ランキング対象データがありません。</div>`}
+          </div>
+        </section>
+      `;
+    }
 
-        const renderAppoForm = () => `
-            <form onsubmit="event.preventDefault(); showToast('アポイント日報を送信しました');" class="space-y-10">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">日付</label><input type="date" class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold" value="${new Date().toISOString().split('T')[0]}"></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">対応タイプ</label><select class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold"><option>通常対応</option><option>平日対応</option></select></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">PP数</label><input type="number" class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold"></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">対応数</label><input type="number" class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold"></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">アポ数</label><input type="number" class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold"></div>
+    function renderTeamRankingPage() {
+      const label = state.rankingMode === "month" ? monthLabel(state.rankingMonth) : quarterLabel(state.rankingQuarter);
+      const rankings = buildTeamRanking(state.teamRankingCategory, selectedPeriod(state.rankingMode, state.rankingMonth, state.rankingQuarter));
+      const topThree = rankings.slice(0, 3);
+      const rest = rankings.slice(3);
+      const currentLabel = teamRankingOptions.find((item) => item.key === state.teamRankingCategory)?.label || "";
+      return `
+        <section class="page-header">
+          <div>
+            <h1>${escapeHtml(label)} ${escapeHtml(currentLabel)}</h1>
+            <p>個人ランキングと同じ指標でチーム全体の順位を表示します。</p>
+          </div>
+        </section>
+        <section class="section">
+          <div class="tabs">
+            ${teamRankingOptions.map((item) => `<button class="tab-button ${state.teamRankingCategory === item.key ? "active" : ""}" data-team-ranking-category="${item.key}">${item.label}</button>`).join("")}
+          </div>
+          <div class="podium">
+            ${[0, 1, 2].map((index) => renderTeamPodiumCard(topThree[index], index + 1)).join("")}
+          </div>
+          <div class="rank-list">
+            ${rest.length ? rest.map((entry, index) => `
+              <div class="rank-row">
+                <div class="rank-badge">${index + 4}位</div>
+                <div>
+                  <strong>${escapeHtml(entry.team.name)}</strong>
+                  <div class="small muted">${escapeHtml(entry.meta)}</div>
                 </div>
-                <button type="submit" class="w-full py-5 bg-blue-900 text-white rounded-[2rem] font-black shadow-2xl hover:bg-blue-800 transition-all text-xl italic tracking-widest">報告を送信する</button>
+                <strong>${escapeHtml(entry.displayValue)}</strong>
+              </div>
+            `).join("") : `<div class="empty">ランキング対象のチームがありません。</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderProfilePage() {
+      const targetId = state.profileTargetId || state.user.id;
+      const person = getStaff(targetId) || state.user;
+      const personStats = buildPersonStats(targetId, { start: state.profileRange.start, end: state.profileRange.end });
+      const canEditIdentity = state.user.permission === "admin";
+      const canEditSelf = state.user.id === targetId;
+      const team = getTeam(person.teamId);
+
+      return `
+        <section class="page-header">
+          <div>
+            <h1>個人プロフィール</h1>
+            <p>${escapeHtml(person.nameKanji)} さんの情報と営業成績を期間指定で表示します。</p>
+          </div>
+          <div class="filter-row">
+            <input type="date" id="profile-start" value="${state.profileRange.start}" />
+            <input type="date" id="profile-end" value="${state.profileRange.end}" />
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-title">個人プロフィール</div>
+          <form id="profile-form" class="two-col">
+            <div class="field">
+              <label>プロフィール画像</label>
+              <div class="stack-row">
+                ${renderAvatar(person, "avatar")}
+                ${canEditSelf ? `<input type="file" name="profileImageFile" accept="image/*" />` : ""}
+              </div>
+            </div>
+            <div class="field">
+              <label>一言（15文字まで）</label>
+              <input name="oneWord" maxlength="15" value="${escapeHtml(person.oneWord || "")}" ${canEditSelf ? "" : "disabled"} />
+            </div>
+            ${renderIdentityField("氏名", "nameKanji", person.nameKanji, canEditIdentity)}
+            ${renderIdentityField("フリガナ", "nameKana", person.nameKana, canEditIdentity)}
+            ${renderIdentityField("性別", "gender", person.gender, canEditIdentity)}
+            <div class="field">
+              <label>年齢 / 誕生日</label>
+              <input value="${escapeHtml(`${calcAge(person.birthDate)}歳 / ${birthdayLabel(person.birthDate)}`)}" disabled />
+            </div>
+            <div class="field">
+              <label>活動期間</label>
+              <input value="${escapeHtml(activityPeriod(person.joinDate))}" disabled />
+            </div>
+            ${renderIdentityField("チーム", "teamId", person.teamId, canEditIdentity, renderTeamSelect(person.teamId))}
+            ${renderIdentityField("役職", "position", person.position, canEditIdentity, renderPositionSelect(person.position))}
+            <div class="field">
+              <label></label>
+              <button class="btn" type="submit">プロフィールを保存</button>
+            </div>
+          </form>
+        </section>
+        <section class="section">
+          <div class="section-title">${escapeHtml(person.nameKanji)} さんの営業成績</div>
+          <div class="metric-grid">
+            ${metricCard("総出勤数", `${formatNumber(personStats.attendanceDays)}日`)}
+            ${metricCard("総ピンポン数", `${personStats.pingPong}`)}
+            ${metricCard("総対応数", `${personStats.responses}`)}
+            ${metricCard("総インキック数", `${personStats.inKick}`)}
+            ${metricCard("総ドアキック数", `${personStats.doorKick}`)}
+            ${metricCard("総対象外数", `${personStats.excluded}`)}
+            ${metricCard("総アプ数", `${personStats.approach}`)}
+            ${metricCard("総アポ数", `${personStats.appointments}`)}
+            ${metricCard("総商談数", `${personStats.totalMeetings}`)}
+            ${metricCard("総契約数", `${personStats.apoContracts + personStats.closerContracts}`)}
+            ${metricCard("総アポ契約数", `${personStats.apoContracts}`)}
+            ${metricCard("総アポ完工数", `${personStats.apoComplete}`)}
+            ${metricCard("ピンポン完工率", formatPercent(personStats.pingPongCompletionRate), "large")}
+            ${metricCard("1日あたり平均ピンポン数", `${formatNumber(personStats.avgPingPongPerAttendance)}件`, "large")}
+            ${metricCard("ピンポン対応率", formatPercent(personStats.pingPongResponseRate))}
+            ${metricCard("対応アポ率", formatPercent(personStats.responseAppointmentRate))}
+            ${metricCard("アプアポ率", formatPercent(personStats.approachAppointmentRate))}
+            ${metricCard("アポ商談率", formatPercent(personStats.appointmentMeetingRate))}
+            ${metricCard("商談完工率", formatPercent(personStats.meetingCompletionRate))}
+            ${metricCard("クロ商談数", `${personStats.closerMeetings}`)}
+            ${metricCard("クロ契約数", `${personStats.closerContracts}`)}
+            ${metricCard("クロ完工数", `${personStats.closerComplete}`)}
+            ${metricCard("クロ商談完工率", formatPercent(personStats.closerCompletionRate))}
+            ${metricCard("キャンセル率", formatPercent(personStats.closerCancelRate))}
+          </div>
+          <div class="status-line">所属チーム：${escapeHtml(team?.name || "未設定")}</div>
+        </section>
+      `;
+    }
+
+    function renderIdentityField(label, name, value, editable, customControl = null) {
+      return `
+        <div class="field">
+          <label>${label}</label>
+          ${customControl || `<input name="${name}" value="${escapeHtml(value || "")}" ${editable ? "" : "disabled"} />`}
+        </div>
+      `;
+    }
+
+    function renderReportsPage() {
+      const appointmentHistory = [...state.data.appointmentReports]
+        .filter((item) => state.user.permission === "admin" || item.staffId === state.user.id)
+        .sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate))
+        .slice(0, 3);
+      const closingHistory = [...state.data.closingReports]
+        .filter((item) => monthOnly(item.meetingDate) === state.closingHistoryMonth)
+        .sort((a, b) => new Date(b.meetingDate) - new Date(a.meetingDate));
+
+      return `
+        <section class="page-header">
+          <div>
+            <h1>日報・商談報告</h1>
+            <p>スタッフはアポイント報告のみ、管理者はクロージング報告も入力できます。</p>
+          </div>
+          <div class="tabs">
+            <button class="tab-button ${state.reportTab === "appointment" ? "active" : ""}" data-report-tab="appointment">アポイント報告</button>
+            ${state.user.permission === "admin" ? `<button class="tab-button ${state.reportTab === "closing" ? "active" : ""}" data-report-tab="closing">クロージング報告</button>` : ""}
+          </div>
+        </section>
+        ${state.reportTab === "appointment" ? `
+          <section class="section">
+            <div class="section-title">アポイント報告</div>
+            <form id="appointment-form" class="three-col">
+              ${readonlyField("アポインター名", state.user.nameKanji)}
+              ${inputField("日時", "reportDate", "datetime-local", toLocalDateTime(new Date()))}
+              ${selectField("平日対応 or 通常対応", "workType", [{ value: "weekday", label: "平日対応" }, { value: "normal", label: "通常対応" }])}
+              ${inputField("ピンポン数", "pingPong", "number", "0")}
+              ${inputField("対応数", "responses", "number", "0")}
+              ${inputField("インキック数", "inKick", "number", "0")}
+              ${inputField("ドアキック数", "doorKick", "number", "0")}
+              ${inputField("対象外数", "excluded", "number", "0")}
+              ${inputField("アプ数", "approach", "number", "0")}
+              ${inputField("アポ数", "appointments", "number", "0")}
+              <div class="field">
+                <label></label>
+                <button class="btn" type="submit">アポイント報告を保存</button>
+              </div>
             </form>
-        `;
-
-        const renderCloForm = () => `
-            <form onsubmit="event.preventDefault(); showToast('商談報告を送信しました');" class="space-y-10 animate-fade-in">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">商談日付</label><input type="date" class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold" value="${new Date().toISOString().split('T')[0]}"></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">顧客名</label><input class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold" placeholder="ヤマダ タロウ"></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">アポインター</label><select class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold">${users.map(u=>`<option>${u.name}</option>`).join('')}</select></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">クローザー</label><select class="w-full bg-slate-50 p-5 rounded-2xl border-2 border-slate-50 font-bold">${users.map(u=>`<option ${u.name===currentUser.name?'selected':''}>${u.name}</option>`).join('')}</select></div>
-                </div>
-                <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">商談結果</label><div class="flex gap-4">${['失注', '契約', '完工'].map(res => `<button type="button" class="flex-1 py-4 rounded-2xl font-black ${res==='完工'?'bg-blue-600 text-white shadow-lg':'bg-slate-50 text-slate-400'}">${res}</button>`).join('')}</div></div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">アポインターへのコメント (50-100字)</label><textarea class="w-full bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-50 h-32 outline-none font-medium leading-relaxed"></textarea></div>
-                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">クローザーへのコメント (任意)</label><textarea class="w-full bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-50 h-32 outline-none font-medium leading-relaxed"></textarea></div>
-                </div>
-                <button type="submit" class="w-full py-5 bg-blue-900 text-white rounded-[2.5rem] font-black shadow-2xl hover:bg-blue-800 text-xl tracking-widest italic">商談報告を送信</button>
+          </section>
+          <section class="section">
+            <div class="section-title">履歴</div>
+            <div class="report-list">
+              ${appointmentHistory.length ? appointmentHistory.map(renderAppointmentHistoryCard).join("") : `<div class="empty">まだ履歴がありません。</div>`}
+            </div>
+          </section>
+        ` : `
+          <section class="section">
+            <div class="section-title">クロージング報告</div>
+            <form id="closing-form" class="three-col">
+              ${inputField("商談日時", "meetingDate", "datetime-local", toLocalDateTime(new Date()))}
+              ${selectField("アポインター名", "appointmenterId", activeStaffOnly().map((item) => ({ value: item.id, label: item.nameKanji })))}
+              ${selectField("クローザー名", "closerId", activeStaffOnly().map((item) => ({ value: item.id, label: item.nameKanji })))}
+              ${selectField("コメント記入者", "commenterId", activeStaffOnly().map((item) => ({ value: item.id, label: item.nameKanji })))}
+              ${inputField("顧客名（カタカナ）", "customerName", "text", "")}
+              ${selectField("商談結果", "result", [{ value: "lost", label: "失注" }, { value: "contract", label: "契約" }, { value: "complete", label: "完工" }])}
+              ${inputField("売上金額（万）", "saleAmount", "number", "0")}
+              ${textareaField("アポインターへのコメント", "appointmenterComment", "50〜100文字")}
+              ${textareaField("クローザーへのコメント", "closerComment", "50〜100文字（コメント記入者本人がクローザーなら空欄可）")}
+              <div class="field">
+                <label></label>
+                <button class="btn" type="submit">クロージング報告を保存</button>
+              </div>
             </form>
-        `;
+          </section>
+          <section class="section">
+            <div class="section-header">
+              <div class="section-title">履歴</div>
+              <input type="month" id="closing-history-month" value="${state.closingHistoryMonth}" />
+            </div>
+            <div class="report-list">
+              ${closingHistory.length ? closingHistory.map(renderClosingHistoryCard).join("") : `<div class="empty">この期間の案件はありません。</div>`}
+            </div>
+          </section>
+        `}
+      `;
+    }
 
-        window.switchReportType = (type) => {
-            const container = document.getElementById('report-form-container');
-            const tabAppo = document.getElementById('tab-appo');
-            const tabClo = document.getElementById('tab-clo');
-            
-            if (type === 'appoint') {
-                container.innerHTML = renderAppoForm();
-                tabAppo.className = "flex-1 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest bg-blue-900 text-white shadow-xl";
-                tabClo.className = "flex-1 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest text-slate-400";
-            } else {
-                container.innerHTML = renderCloForm();
-                tabClo.className = "flex-1 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest bg-blue-900 text-white shadow-xl";
-                tabAppo.className = "flex-1 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest text-slate-400";
-            }
-        };
+    function renderSystemErrorPage() {
+      return `
+        <section class="page-header">
+          <div>
+            <h1>システムエラー報告</h1>
+            <p>システム上のバグが起きた場合や,こういう改善をしてほしい等の意見,報告を送付してください。</p>
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-title">送信先</div>
+          <div class="status-line">${escapeHtml(state.data.mailTarget)}</div>
+          <form id="error-form" class="field-grid">
+            <div class="field">
+              <label>内容</label>
+              <textarea name="message" placeholder="エラー内容や改善要望を入力してください。" required></textarea>
+            </div>
+            <button class="btn" type="submit">エラー報告を送信</button>
+          </form>
+        </section>
+      `;
+    }
 
-        const renderErrorView = (container) => {
-            container.innerHTML = `
-                <div class="max-w-3xl mx-auto py-10">
-                    <div class="bg-white p-12 rounded-[3rem] shadow-sm border border-slate-100 text-center relative overflow-hidden">
-                        <div class="w-20 h-20 bg-red-50 text-red-600 rounded-[2rem] flex items-center justify-center mx-auto mb-10">⚠️</div>
-                        <h3 class="text-3xl font-black text-slate-800 mb-4 tracking-tight italic">システムエラー報告・改善要望</h3>
-                        <p class="text-slate-400 font-bold mb-10 leading-relaxed max-w-lg mx-auto uppercase text-xs tracking-widest">バグや改善アイデアがあれば送付してください。</p>
-                        <textarea id="error-msg" class="w-full bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100 h-56 outline-none focus:border-red-400 shadow-inner font-medium" placeholder="具体的な内容を記入してください..."></textarea>
-                        <button onclick="if(document.getElementById('error-msg').value){showToast('バグ報告を受理しました'); document.getElementById('error-msg').value='';}" class="w-full mt-8 py-5 bg-slate-900 text-white rounded-[2rem] font-black shadow-2xl hover:bg-slate-800 text-lg tracking-widest italic">報告を送信</button>
-                    </div>
+    function renderHistoryPage() {
+      const month = state.historyMonth;
+      const rows = [...state.data.appointmentReports]
+        .filter((item) => monthOnly(item.reportDate) === month)
+        .sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+
+      return `
+        <section class="page-header">
+          <div>
+            <h1>履歴</h1>
+            <p>各スタッフ全員のアポイント報告履歴を期間選択して再編集できます。</p>
+          </div>
+          <input type="month" id="history-month" value="${month}" />
+        </section>
+        <section class="section">
+          <div class="report-list">
+            ${rows.length ? rows.map(renderAppointmentHistoryCard).join("") : `<div class="empty">この期間の履歴はありません。</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderRosterPage() {
+      const roster = [...state.data.staff].sort((a, b) => {
+        if (a.retiredAt && !b.retiredAt) return 1;
+        if (!a.retiredAt && b.retiredAt) return -1;
+        return staffSorter(a, b);
+      });
+
+      return `
+        <section class="page-header">
+          <div>
+            <h1>スタッフ名簿</h1>
+            <p>管理者のみ登録・編集でき、退社済みスタッフは下部にグレー表示されます。</p>
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-title">スタッフ登録</div>
+          <form id="staff-form" class="three-col">
+            ${inputField("スタッフ氏名（漢字）", "nameKanji", "text", "")}
+            ${inputField("スタッフ氏名（フリガナ）", "nameKana", "text", "")}
+            ${selectField("性別", "gender", [{ value: "男性", label: "男性" }, { value: "女性", label: "女性" }])}
+            ${inputField("生年月日", "birthDate", "date", "")}
+            ${inputField("入社日", "joinDate", "date", "")}
+            ${selectField("チーム", "teamId", state.data.teams.map((team) => ({ value: team.id, label: team.name })))}
+            ${selectField("役職", "position", [{ value: "アポインター", label: "アポインター" }, { value: "自力プレーヤー", label: "自力プレーヤー" }, { value: "クローザー", label: "クローザー" }])}
+            ${inputField("メールアドレス", "email", "email", "")}
+            ${inputField("パスワード", "password", "password", "")}
+            ${selectField("権限", "permission", [{ value: "staff", label: "スタッフ" }, { value: "admin", label: "管理者" }])}
+            ${inputField("一言", "oneWord", "text", "")}
+            <div class="field">
+              <label>退社日</label>
+              <input name="retiredAt" type="date" />
+            </div>
+            <div class="field">
+              <label></label>
+              <button class="btn" type="submit">スタッフを登録</button>
+            </div>
+          </form>
+        </section>
+        <section class="section">
+          <div class="section-title">名簿一覧</div>
+          <div class="list-grid">
+            ${roster.map((item) => `
+              <div class="person-card ${item.retiredAt ? "retired" : ""}">
+                <div class="roster-item">
+                  ${renderAvatar(item)}
+                  <div>
+                    <div class="person-name clickable" data-open-profile="${item.id}">${escapeHtml(item.nameKanji)}</div>
+                    <div class="small muted">${escapeHtml(item.nameKana)} / ${escapeHtml(item.position)} / ${escapeHtml(item.permission === "admin" ? "管理者" : "スタッフ")}</div>
+                    <div class="small muted">所属: ${escapeHtml(getTeam(item.teamId)?.name || "未設定")}</div>
+                  </div>
+                  <button class="mini-button" data-fill-staff="${item.id}">編集</button>
                 </div>
-            `;
-        };
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
 
-        const renderHistory = (container) => {
-            container.innerHTML = `
-                <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                    <div class="p-10 border-b border-slate-50 flex justify-between items-center">
-                        <h4 class="font-black text-slate-800 text-2xl italic tracking-tight">全スタッフ報告履歴</h4>
-                        <input type="month" class="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-3 font-bold text-blue-900" value="2023-11">
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead class="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-widest">
-                                <tr><th class="px-10 py-6">日時</th><th class="px-6 py-6">氏名</th><th class="px-6 py-6 text-center">種別</th><th class="px-6 py-6 text-center">アポ</th><th class="px-10 py-6 text-right">管理操作</th></tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                ${reports.map(r => `
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-10 py-6 font-bold text-slate-400 text-sm">${r.date}</td>
-                                        <td class="px-6 py-6 font-black text-slate-700">${r.userName || r.appointUserName}</td>
-                                        <td class="px-6 py-6 text-center italic font-bold text-xs text-slate-400 uppercase">${r.type==='appoint'?'日報':'商談'}</td>
-                                        <td class="px-6 py-6 text-center font-black text-blue-900">${r.apo||'-'}</td>
-                                        <td class="px-10 py-6 text-right"><button class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Edit</button></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+    function renderTeamsPage() {
+      return `
+        <section class="page-header">
+          <div>
+            <h1>チーム登録</h1>
+            <p>各チームとチームメンバーを登録・編集できます。</p>
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-title">チーム登録</div>
+          <form id="team-form" class="two-col">
+            ${inputField("チーム名", "name", "text", "")}
+            <div class="field">
+              <label>配属メンバー</label>
+              <select name="memberIds" multiple size="8">
+                ${state.data.staff.sort(staffSorter).map((staff) => `<option value="${staff.id}">${escapeHtml(staff.nameKanji)}${staff.retiredAt ? "（退社）" : ""}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label></label>
+              <button class="btn" type="submit">チームを保存</button>
+            </div>
+          </form>
+        </section>
+        <section class="section">
+          <div class="section-title">チーム一覧</div>
+          <div class="team-list">
+            ${state.data.teams.map((team) => `
+              <div class="team-card">
+                <div class="section-header">
+                  <strong>${escapeHtml(team.name)}</strong>
+                  <button class="mini-button" data-fill-team="${team.id}">編集</button>
                 </div>
-            `;
-        };
-
-        const renderStaffList = (container) => {
-            container.innerHTML = `
-                <div class="space-y-10">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-3xl font-black text-slate-800 italic">スタッフ名簿</h3>
-                        <button class="bg-blue-950 text-white px-8 py-4 rounded-2xl font-black shadow-2xl hover:scale-105 transition-all">スタッフ登録</button>
-                    </div>
-                    <div class="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                        <div class="p-8 border-b border-slate-50 flex items-center space-x-6 text-slate-300">
-                            <span>🔍</span><input class="flex-1 bg-transparent outline-none font-bold text-slate-700" placeholder="名前、所属、チームで検索...">
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead class="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-widest">
-                                    <tr><th class="px-10 py-6">氏名</th><th class="px-6 py-6">期間/年齢</th><th class="px-6 py-6">チーム</th><th class="px-6 py-6">権限</th><th class="px-10 py-6 text-right">詳細</th></tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-50">
-                                    ${users.map(u => `
-                                        <tr class="hover:bg-slate-50">
-                                            <td class="px-10 py-7"><div class="flex items-center space-x-4"><img src="${u.image}" class="w-14 h-14 rounded-2xl object-cover shadow-sm border-2 border-white"><div><p class="font-black text-slate-800 text-lg mb-1 leading-none">${u.name}</p><p class="text-[9px] text-slate-400 font-black uppercase">${u.email}</p></div></div></td>
-                                            <td class="px-6 py-7"><p class="font-black text-slate-700 text-sm">${getActivityPeriod(u.joinDate)}</p><p class="text-[10px] text-slate-400 font-bold">${getAge(u.birthday)}歳</p></td>
-                                            <td class="px-6 py-7"><p class="font-bold text-slate-700 text-sm">${u.team}</p><p class="text-[10px] text-slate-400 font-black uppercase italic">${u.position}</p></td>
-                                            <td class="px-6 py-7"><span class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${u.role==='admin'?'bg-indigo-50 text-indigo-700 border-indigo-100':'bg-blue-50 text-blue-700 border-blue-100'}">${u.role}</span></td>
-                                            <td class="px-10 py-7 text-right"><button class="text-[10px] font-black text-blue-600 uppercase">Modify</button></td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div class="stack-row">
+                  ${team.memberIds.map((memberId) => {
+                    const member = getStaff(memberId);
+                    if (!member) return "";
+                    return `<span class="pill ${member.retiredAt ? "retired" : ""}">${escapeHtml(member.nameKanji)}</span>`;
+                  }).join("")}
                 </div>
-            `;
-        };
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
 
-        const calculateStats = () => {
-            const stats = {
-                totalSales: 2450, totalCompletion: 0, totalApo: 0, totalPingPong: 0,
-                totalResponse: 0, totalInKick: 0, totalDoorKick: 0, totalOutOfScope: 0,
-                totalApproach: 0, totalAttendance: 0, totalNegotiation: 0, totalContracts: 0,
-                staffStats: {}
-            };
+    function renderAppointmentHistoryCard(report) {
+      const staff = getStaff(report.staffId);
+      return `
+        <div class="report-card">
+          <div class="section-header">
+            <strong>${escapeHtml(staff?.nameKanji || "-")}</strong>
+            <button class="mini-button" data-edit-appointment="${report.id}">再編集</button>
+          </div>
+          <div class="small muted">${escapeHtml(formatDateTime(report.reportDate))}</div>
+          <div class="stack-row">
+            <span class="pill">ピンポン ${report.pingPong}</span>
+            <span class="pill">対応 ${report.responses}</span>
+            <span class="pill">アポ ${report.appointments}</span>
+          </div>
+        </div>
+      `;
+    }
 
-            reports.forEach(r => {
-                if (r.type === 'appoint') {
-                    stats.totalPingPong += r.pingpong;
-                    stats.totalResponse += r.response;
-                    stats.totalApo += r.apo;
-                    stats.totalAttendance += (r.mode === '平日対応' ? 0.3 : 1.0);
+    function renderClosingHistoryCard(report) {
+      const appointmenter = getStaff(report.appointmenterId);
+      const closer = getStaff(report.closerId);
+      return `
+        <div class="report-card">
+          <div class="section-header">
+            <strong>${escapeHtml(report.customerName)}</strong>
+            <button class="mini-button" data-edit-closing="${report.id}">再編集</button>
+          </div>
+          <div class="small muted">${escapeHtml(formatDateTime(report.meetingDate))}</div>
+          <div class="stack-row">
+            <span class="pill">アポインター ${escapeHtml(appointmenter?.nameKanji || "-")}</span>
+            <span class="pill">クローザー ${escapeHtml(closer?.nameKanji || "-")}</span>
+            <span class="pill">${resultLabel(report.result)}</span>
+            <span class="pill">${formatNumber(report.saleAmount)}万</span>
+          </div>
+        </div>
+      `;
+    }
 
-                    if (!stats.staffStats[r.userId]) stats.staffStats[r.userId] = { name: r.userName, apo: 0, pingpong: 0, completion: 0, attendance: 0 };
-                    stats.staffStats[r.userId].apo += r.apo;
-                    stats.staffStats[r.userId].pingpong += r.pingpong;
-                    stats.staffStats[r.userId].attendance += (r.mode === '平日対応' ? 0.3 : 1.0);
-                } else if (r.type === 'closing') {
-                    stats.totalNegotiation += 1;
-                    if (r.status === '契約' || r.status === '完工') stats.totalContracts += 1;
-                    if (r.status === '完工') {
-                        stats.totalCompletion += 1;
-                        if (stats.staffStats[r.appointUserId]) stats.staffStats[r.appointUserId].completion += 1;
-                    }
-                }
+    function inputField(label, name, type, value) {
+      return `<div class="field"><label>${label}</label><input name="${name}" type="${type}" value="${escapeHtml(value)}" required /></div>`;
+    }
+
+    function textareaField(label, name, placeholder) {
+      return `<div class="field"><label>${label}</label><textarea name="${name}" placeholder="${escapeHtml(placeholder)}"></textarea></div>`;
+    }
+
+    function readonlyField(label, value) {
+      return `<div class="field"><label>${label}</label><input value="${escapeHtml(value)}" disabled /></div>`;
+    }
+
+    function selectField(label, name, options) {
+      return `
+        <div class="field">
+          <label>${label}</label>
+          <select name="${name}">
+            ${options.map((option) => `<option value="${option.value}">${escapeHtml(option.label)}</option>`).join("")}
+          </select>
+        </div>
+      `;
+    }
+
+    function renderTeamSelect(selected) {
+      return `<select name="teamId" ${state.user.permission === "admin" ? "" : "disabled"}>${state.data.teams.map((team) => `<option value="${team.id}" ${selected === team.id ? "selected" : ""}>${escapeHtml(team.name)}</option>`).join("")}</select>`;
+    }
+
+    function renderPositionSelect(selected) {
+      const options = ["アポインター", "自力プレーヤー", "クローザー"];
+      return `<select name="position" ${state.user.permission === "admin" ? "" : "disabled"}>${options.map((item) => `<option value="${item}" ${selected === item ? "selected" : ""}>${item}</option>`).join("")}</select>`;
+    }
+
+    function bindEvents() {
+      document.getElementById("login-form")?.addEventListener("submit", handleLogin);
+      document.querySelectorAll("[data-page]").forEach((button) => button.addEventListener("click", () => {
+        state.page = button.dataset.page;
+        state.mobileMenuOpen = false;
+        render();
+      }));
+      document.querySelector('[data-action="toggle-menu"]')?.addEventListener("click", () => {
+        state.mobileMenuOpen = !state.mobileMenuOpen;
+        render();
+      });
+      document.querySelector('[data-action="logout"]')?.addEventListener("click", logout);
+      document.querySelector('[data-action="notifications"]')?.addEventListener("click", requestNotifications);
+
+      document.getElementById("overall-month")?.addEventListener("change", (event) => {
+        state.overallMonth = event.target.value;
+        render();
+      });
+      document.getElementById("overall-quarter")?.addEventListener("change", (event) => {
+        state.overallQuarter = event.target.value;
+        render();
+      });
+      document.querySelectorAll("[data-overall-mode]").forEach((button) => button.addEventListener("click", () => {
+        state.overallMode = button.dataset.overallMode;
+        render();
+      }));
+
+      document.getElementById("ranking-month")?.addEventListener("change", (event) => {
+        state.rankingMonth = event.target.value;
+        render();
+      });
+      document.getElementById("ranking-quarter")?.addEventListener("change", (event) => {
+        state.rankingQuarter = event.target.value;
+        render();
+      });
+      document.querySelectorAll("[data-ranking-mode]").forEach((button) => button.addEventListener("click", () => {
+        state.rankingMode = button.dataset.rankingMode;
+        render();
+      }));
+      document.querySelectorAll("[data-ranking-category]").forEach((button) => button.addEventListener("click", () => {
+        state.rankingCategory = button.dataset.rankingCategory;
+        render();
+      }));
+      document.querySelectorAll("[data-team-ranking-category]").forEach((button) => button.addEventListener("click", () => {
+        state.teamRankingCategory = button.dataset.teamRankingCategory;
+        render();
+      }));
+
+      document.getElementById("profile-start")?.addEventListener("change", (event) => {
+        state.profileRange.start = event.target.value;
+        render();
+      });
+      document.getElementById("profile-end")?.addEventListener("change", (event) => {
+        state.profileRange.end = event.target.value;
+        render();
+      });
+      document.getElementById("profile-form")?.addEventListener("submit", handleProfileSave);
+
+      document.querySelectorAll("[data-report-tab]").forEach((button) => button.addEventListener("click", () => {
+        state.reportTab = button.dataset.reportTab;
+        render();
+      }));
+      document.getElementById("appointment-form")?.addEventListener("submit", handleAppointmentSubmit);
+      document.getElementById("closing-form")?.addEventListener("submit", handleClosingSubmit);
+      document.getElementById("closing-history-month")?.addEventListener("change", (event) => {
+        state.closingHistoryMonth = event.target.value;
+        render();
+      });
+      document.getElementById("error-form")?.addEventListener("submit", handleErrorSubmit);
+      document.getElementById("history-month")?.addEventListener("change", (event) => {
+        state.historyMonth = event.target.value;
+        render();
+      });
+      document.getElementById("staff-form")?.addEventListener("submit", handleStaffSubmit);
+      document.getElementById("team-form")?.addEventListener("submit", handleTeamSubmit);
+
+      document.querySelectorAll("[data-open-profile]").forEach((button) => button.addEventListener("click", () => {
+        state.profileTargetId = button.dataset.openProfile;
+        state.page = "profile";
+        render();
+      }));
+
+      document.querySelectorAll("[data-edit-appointment]").forEach((button) => button.addEventListener("click", () => fillAppointmentForm(button.dataset.editAppointment)));
+      document.querySelectorAll("[data-edit-closing]").forEach((button) => button.addEventListener("click", () => fillClosingForm(button.dataset.editClosing)));
+      document.querySelectorAll("[data-fill-staff]").forEach((button) => button.addEventListener("click", () => fillStaffForm(button.dataset.fillStaff)));
+      document.querySelectorAll("[data-fill-team]").forEach((button) => button.addEventListener("click", () => fillTeamForm(button.dataset.fillTeam)));
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password")
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        state.notice = payload.error || "ログインに失敗しました。";
+        render();
+        return;
+      }
+      state.token = payload.token;
+      localStorage.setItem("sirius_token", state.token);
+      applyPayload(payload.payload);
+      state.notice = "";
+      render();
+      requestNotifications();
+      startPolling();
+    }
+
+    async function logout() {
+      if (state.token) {
+        await fetch("/api/logout", { method: "POST", headers: authHeaders() });
+      }
+      localStorage.removeItem("sirius_token");
+      state.token = "";
+      state.user = null;
+      state.data = null;
+      render();
+    }
+
+    function authHeaders() {
+      return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${state.token}`
+      };
+    }
+
+    function applyPayload(payload) {
+      state.data = payload;
+      state.user = payload.viewer;
+      if (!state.profileTargetId) {
+        state.profileTargetId = state.user.id;
+      }
+    }
+
+    async function refreshData() {
+      const response = await fetch("/api/data", { headers: { Authorization: `Bearer ${state.token}` } });
+      if (!response.ok) return false;
+      const payload = await response.json();
+      applyPayload(payload);
+      return true;
+    }
+
+    let polling = null;
+    function startPolling() {
+      if (polling) return;
+      polling = setInterval(async () => {
+        const before = buildTimelineItems().map((item) => item.id);
+        const ok = await refreshData();
+        if (!ok) return;
+        const afterItems = buildTimelineItems();
+        const after = afterItems.map((item) => item.id);
+        const newIds = after.filter((id) => !state.lastTimelineIds.includes(id) && !before.includes(id));
+        if (newIds.length) {
+          localStorage.setItem("sirius_timeline_seen", JSON.stringify(after));
+          state.lastTimelineIds = after;
+          if (window.Notification && Notification.permission === "granted") {
+            newIds.forEach((id) => {
+              const item = afterItems.find((entry) => entry.id === id);
+              if (!item) return;
+              new Notification("SIRIUSLINK.LOG 契約通知", {
+                body: `${item.appointmenter?.nameKanji || "-"} / ${item.closer?.nameKanji || "-"} / ${item.customerName}`
+              });
             });
-            return stats;
+          }
+          render();
+        }
+      }, 20000);
+    }
+
+    async function requestNotifications() {
+      if (!("Notification" in window)) {
+        alert("このブラウザは通知に対応していません。");
+        return;
+      }
+      if (Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+    }
+
+    async function handleAppointmentSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const isUpdate = event.currentTarget.dataset.editId;
+      const payload = {
+        reportDate: new Date(formData.get("reportDate")).toISOString(),
+        workType: formData.get("workType"),
+        pingPong: Number(formData.get("pingPong") || 0),
+        responses: Number(formData.get("responses") || 0),
+        inKick: Number(formData.get("inKick") || 0),
+        doorKick: Number(formData.get("doorKick") || 0),
+        excluded: Number(formData.get("excluded") || 0),
+        approach: Number(formData.get("approach") || 0),
+        appointments: Number(formData.get("appointments") || 0)
+      };
+      if (isUpdate) payload.id = isUpdate;
+      const response = await fetch("/api/appointment_reports", {
+        method: isUpdate ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json();
+      alert(body.error || "アポイント報告を保存しました。");
+      if (response.ok) {
+        event.currentTarget.reset();
+        delete event.currentTarget.dataset.editId;
+        await refreshData();
+        render();
+      }
+    }
+
+    async function handleClosingSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const commenterId = formData.get("commenterId");
+      const closerId = formData.get("closerId");
+      const appointmenterComment = String(formData.get("appointmenterComment") || "");
+      const closerComment = String(formData.get("closerComment") || "");
+      if (appointmenterComment.length < 50 || appointmenterComment.length > 100) {
+        alert("アポインターへのコメントは50〜100文字で入力してください。");
+        return;
+      }
+      if (commenterId !== closerId && (closerComment.length < 50 || closerComment.length > 100)) {
+        alert("クローザーへのコメントは50〜100文字で入力してください。");
+        return;
+      }
+      const isUpdate = event.currentTarget.dataset.editId;
+      const payload = {
+        meetingDate: new Date(formData.get("meetingDate")).toISOString(),
+        appointmenterId: formData.get("appointmenterId"),
+        closerId: closerId,
+        commenterId,
+        customerName: formData.get("customerName"),
+        result: formData.get("result"),
+        saleAmount: Number(formData.get("saleAmount") || 0),
+        appointmenterComment,
+        closerComment
+      };
+      if (isUpdate) payload.id = isUpdate;
+      const response = await fetch("/api/closing_reports", {
+        method: isUpdate ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json();
+      alert(body.error || "クロージング報告を保存しました。");
+      if (response.ok) {
+        event.currentTarget.reset();
+        delete event.currentTarget.dataset.editId;
+        await refreshData();
+        render();
+      }
+    }
+
+    async function handleErrorSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const response = await fetch("/api/error_reports", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ message: formData.get("message") })
+      });
+      const body = await response.json();
+      alert(body.message || body.error || "送信しました。");
+      if (response.ok) {
+        event.currentTarget.reset();
+        await refreshData();
+        render();
+      }
+    }
+
+    async function handleProfileSave(event) {
+      event.preventDefault();
+      const targetId = state.profileTargetId || state.user.id;
+      const person = getStaff(targetId);
+      const formData = new FormData(event.currentTarget);
+      const payload = { id: targetId };
+      if (state.user.permission === "admin") {
+        payload.nameKanji = formData.get("nameKanji") || person.nameKanji;
+        payload.nameKana = formData.get("nameKana") || person.nameKana;
+        payload.gender = formData.get("gender") || person.gender;
+        payload.teamId = formData.get("teamId") || person.teamId;
+        payload.position = formData.get("position") || person.position;
+      }
+      if (state.user.id === targetId) {
+        payload.oneWord = formData.get("oneWord") || "";
+      }
+      const file = formData.get("profileImageFile");
+      if (state.user.id === targetId && file && file.size) {
+        payload.profileImage = await fileToDataUrl(file);
+      }
+      const response = await fetch("/api/staff", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json();
+      alert(body.error || "プロフィールを更新しました。");
+      if (response.ok) {
+        await refreshData();
+        render();
+      }
+    }
+
+    async function handleStaffSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const isUpdate = event.currentTarget.dataset.editId;
+      const payload = {
+        nameKanji: formData.get("nameKanji"),
+        nameKana: formData.get("nameKana"),
+        gender: formData.get("gender"),
+        birthDate: formData.get("birthDate"),
+        joinDate: formData.get("joinDate"),
+        teamId: formData.get("teamId"),
+        position: formData.get("position"),
+        email: formData.get("email"),
+        password: formData.get("password"),
+        permission: formData.get("permission"),
+        retiredAt: formData.get("retiredAt") || null,
+        oneWord: formData.get("oneWord")
+      };
+      if (isUpdate) payload.id = isUpdate;
+      const response = await fetch("/api/staff", {
+        method: isUpdate ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json();
+      alert(body.error || "スタッフ情報を保存しました。");
+      if (response.ok) {
+        event.currentTarget.reset();
+        delete event.currentTarget.dataset.editId;
+        await refreshData();
+        render();
+      }
+    }
+
+    async function handleTeamSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const members = Array.from(event.currentTarget.querySelector('select[name="memberIds"]').selectedOptions).map((option) => option.value);
+      const isUpdate = event.currentTarget.dataset.editId;
+      const payload = { name: formData.get("name"), memberIds: members };
+      if (isUpdate) payload.id = isUpdate;
+      const response = await fetch("/api/teams", {
+        method: isUpdate ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json();
+      alert(body.error || "チーム情報を保存しました。");
+      if (response.ok) {
+        event.currentTarget.reset();
+        delete event.currentTarget.dataset.editId;
+        await refreshData();
+        render();
+      }
+    }
+
+    function fillAppointmentForm(id) {
+      const report = state.data.appointmentReports.find((item) => item.id === id);
+      const form = document.getElementById("appointment-form");
+      if (!report || !form) return;
+      form.dataset.editId = report.id;
+      form.reportDate.value = toLocalDateTime(new Date(report.reportDate));
+      form.workType.value = report.workType;
+      form.pingPong.value = report.pingPong;
+      form.responses.value = report.responses;
+      form.inKick.value = report.inKick;
+      form.doorKick.value = report.doorKick;
+      form.excluded.value = report.excluded;
+      form.approach.value = report.approach;
+      form.appointments.value = report.appointments;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function fillClosingForm(id) {
+      state.reportTab = "closing";
+      render();
+      const report = state.data.closingReports.find((item) => item.id === id);
+      const form = document.getElementById("closing-form");
+      if (!report || !form) return;
+      form.dataset.editId = report.id;
+      form.meetingDate.value = toLocalDateTime(new Date(report.meetingDate));
+      form.appointmenterId.value = report.appointmenterId;
+      form.closerId.value = report.closerId;
+      form.commenterId.value = report.commenterId;
+      form.customerName.value = report.customerName;
+      form.result.value = report.result;
+      form.saleAmount.value = report.saleAmount;
+      form.appointmenterComment.value = report.appointmenterComment;
+      form.closerComment.value = report.closerComment;
+    }
+
+    function fillStaffForm(id) {
+      const person = getStaff(id);
+      const form = document.getElementById("staff-form");
+      if (!person || !form) return;
+      form.dataset.editId = person.id;
+      form.nameKanji.value = person.nameKanji;
+      form.nameKana.value = person.nameKana;
+      form.gender.value = person.gender;
+      form.birthDate.value = person.birthDate;
+      form.joinDate.value = person.joinDate;
+      form.teamId.value = person.teamId;
+      form.position.value = person.position;
+      form.email.value = person.email || "";
+      form.permission.value = person.permission;
+      form.oneWord.value = person.oneWord || "";
+      form.retiredAt.value = person.retiredAt ? person.retiredAt.slice(0, 10) : "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function fillTeamForm(id) {
+      const team = getTeam(id);
+      const form = document.getElementById("team-form");
+      if (!team || !form) return;
+      form.dataset.editId = team.id;
+      form.name.value = team.name;
+      const select = form.querySelector('select[name="memberIds"]');
+      Array.from(select.options).forEach((option) => {
+        option.selected = team.memberIds.includes(option.value);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function selectedPeriod(mode, month, quarter) {
+      if (mode === "month") {
+        const [year, m] = month.split("-").map(Number);
+        return { start: `${year}-${String(m).padStart(2, "0")}-01`, end: dateValue(new Date(year, m, 0)) };
+      }
+      const [yearText, quarterText] = quarter.split("-Q");
+      const year = Number(yearText);
+      const q = Number(quarterText);
+      const startMonth = (q - 1) * 3;
+      const start = new Date(year, startMonth, 1);
+      const end = new Date(year, startMonth + 3, 0);
+      return { start: dateValue(start), end: dateValue(end) };
+    }
+
+    function inDateRange(value, period) {
+      const date = new Date(value);
+      const start = new Date(period.start);
+      const end = new Date(period.end);
+      end.setHours(23, 59, 59, 999);
+      return date >= start && date <= end;
+    }
+
+    function buildOverallStats(period) {
+      const appointments = state.data.appointmentReports.filter((item) => inDateRange(item.reportDate, period));
+      const closings = state.data.closingReports.filter((item) => inDateRange(item.meetingDate, period));
+
+      const totalPingPong = sum(appointments, "pingPong");
+      const totalResponses = sum(appointments, "responses");
+      const totalInKick = sum(appointments, "inKick");
+      const totalDoorKick = sum(appointments, "doorKick");
+      const totalExcluded = sum(appointments, "excluded");
+      const totalApproach = sum(appointments, "approach");
+      const totalAppointments = sum(appointments, "appointments");
+      const attendanceDays = appointments.reduce((acc, item) => acc + (item.workType === "weekday" ? 0.3 : 1), 0);
+      const totalMeetings = closings.length;
+      const totalContracts = closings.filter(isContractLike).length;
+      const totalComplete = closings.filter((item) => item.result === "complete").length;
+      const totalApoContracts = totalContracts;
+      const totalCloserContracts = totalContracts;
+      const totalApoComplete = totalComplete;
+      const totalCloserComplete = totalComplete;
+      const totalSales = closings.filter(isContractLike).reduce((acc, item) => acc + Number(item.saleAmount || 0), 0);
+      return {
+        totalSales,
+        totalComplete,
+        attendanceDays,
+        totalPingPong,
+        totalResponses,
+        totalInKick,
+        totalDoorKick,
+        totalExcluded,
+        totalApproach,
+        totalAppointments,
+        totalMeetings,
+        totalContracts,
+        totalApoContracts,
+        totalCloserContracts,
+        totalApoComplete,
+        totalCloserComplete,
+        pingPongCompletionRate: ratio(totalComplete, totalPingPong),
+        avgPingPongPerAttendance: ratio(totalPingPong, attendanceDays),
+        pingPongResponseRate: ratio(totalResponses, totalPingPong),
+        responseInKickRate: ratio(totalInKick, totalResponses),
+        responseAppointmentRate: ratio(totalAppointments, totalResponses),
+        approachAppointmentRate: ratio(totalAppointments, totalApproach),
+        appointmentMeetingRate: ratio(totalMeetings, totalAppointments),
+        meetingCompletionRate: ratio(totalComplete, totalMeetings),
+        cancelRate: totalContracts ? (totalContracts - totalComplete) / totalContracts : 0
+      };
+    }
+
+    function buildPersonStats(staffId, period) {
+      const appointmentReports = state.data.appointmentReports.filter((item) => item.staffId === staffId && inDateRange(item.reportDate, period));
+      const relevantClosings = state.data.closingReports.filter((item) => inDateRange(item.meetingDate, period));
+      const apoClosings = relevantClosings.filter((item) => item.appointmenterId === staffId);
+      const closerClosings = relevantClosings.filter((item) => item.closerId === staffId);
+      const pingPong = sum(appointmentReports, "pingPong");
+      const responses = sum(appointmentReports, "responses");
+      const inKick = sum(appointmentReports, "inKick");
+      const doorKick = sum(appointmentReports, "doorKick");
+      const excluded = sum(appointmentReports, "excluded");
+      const approach = sum(appointmentReports, "approach");
+      const appointments = sum(appointmentReports, "appointments");
+      const attendanceDays = appointmentReports.reduce((acc, item) => acc + (item.workType === "weekday" ? 0.3 : 1), 0);
+      const totalMeetings = apoClosings.length;
+      const apoContracts = apoClosings.filter(isContractLike).length;
+      const apoComplete = apoClosings.filter((item) => item.result === "complete").length;
+      const closerMeetings = closerClosings.length;
+      const closerContracts = closerClosings.filter(isContractLike).length;
+      const closerComplete = closerClosings.filter((item) => item.result === "complete").length;
+      return {
+        attendanceDays,
+        pingPong,
+        responses,
+        inKick,
+        doorKick,
+        excluded,
+        approach,
+        appointments,
+        totalMeetings,
+        apoContracts,
+        apoComplete,
+        closerMeetings,
+        closerContracts,
+        closerComplete,
+        pingPongCompletionRate: ratio(apoComplete, pingPong),
+        avgPingPongPerAttendance: ratio(pingPong, attendanceDays),
+        pingPongResponseRate: ratio(responses, pingPong),
+        responseAppointmentRate: ratio(appointments, responses),
+        approachAppointmentRate: ratio(appointments, approach),
+        appointmentMeetingRate: ratio(totalMeetings, appointments),
+        meetingCompletionRate: ratio(apoComplete, totalMeetings),
+        closerCompletionRate: ratio(closerComplete, closerMeetings),
+        closerCancelRate: closerContracts ? (closerContracts - closerComplete) / closerContracts : 0
+      };
+    }
+
+    function buildIndividualRanking(category, period) {
+      const people = activeStaffOnly();
+      return people.map((person) => {
+        const stats = buildPersonStats(person.id, period);
+        const metric = rankingMetricForPerson(category, stats);
+        return {
+          person,
+          value: metric.value,
+          displayValue: metric.displayValue,
+          meta: metric.meta,
+          ascending: metric.ascending
         };
+      }).sort((a, b) => sortRanking(a, b));
+    }
 
-        // --- Event Listeners ---
-        document.getElementById('login-form').addEventListener('submit', handleLogin);
-        document.getElementById('logout-btn').addEventListener('click', handleLogout);
-        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('-translate-x-full');
-            document.getElementById('sidebar').classList.add('translate-x-0');
-            document.getElementById('sidebar-overlay').classList.remove('hidden');
-        });
-        document.getElementById('sidebar-overlay').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.add('-translate-x-full');
-            document.getElementById('sidebar').classList.remove('translate-x-0');
-            document.getElementById('sidebar-overlay').classList.add('hidden');
-        });
+    function buildTeamRanking(category, period) {
+      const teams = state.data.teams.map((team) => {
+        const members = team.memberIds
+          .map((id) => getStaff(id))
+          .filter((person) => person && !person.retiredAt);
+        const merged = members.reduce((acc, person) => {
+          const stats = buildPersonStats(person.id, period);
+          Object.keys(stats).forEach((key) => {
+            acc[key] = (acc[key] || 0) + (typeof stats[key] === "number" ? stats[key] : 0);
+          });
+          return acc;
+        }, {});
+        const metric = rankingMetricForPerson(category, merged);
+        return {
+          team,
+          value: metric.value,
+          displayValue: metric.displayValue,
+          meta: `${members.length}名`,
+          ascending: metric.ascending
+        };
+      });
+      return teams.sort((a, b) => sortRanking(a, b));
+    }
 
-    </script>
+    function rankingMetricForPerson(category, stats) {
+      switch (category) {
+        case "apoComplete":
+          return { value: stats.apoComplete, displayValue: `${stats.apoComplete}件`, meta: "アポ完工数", ascending: false };
+        case "apoMeeting":
+          return { value: stats.totalMeetings, displayValue: `${stats.totalMeetings}件`, meta: "商談数", ascending: false };
+        case "apoCount":
+          return { value: stats.appointments, displayValue: `${stats.appointments}件`, meta: "アポ数", ascending: false };
+        case "pingPong":
+          return { value: stats.pingPong, displayValue: `${stats.pingPong}件`, meta: "ピンポン数", ascending: false };
+        case "pingPongCompletion":
+          return { value: stats.pingPongCompletionRate, displayValue: formatPercent(stats.pingPongCompletionRate), meta: "ピンポン完工率", ascending: false };
+        case "closerComplete":
+          return { value: stats.closerComplete, displayValue: `${stats.closerComplete}件`, meta: "クロ完工数", ascending: false };
+        case "closerCompletionRate":
+          return { value: stats.closerCompletionRate, displayValue: formatPercent(stats.closerCompletionRate), meta: "商談完工率", ascending: false };
+        case "closerCancelRate":
+          return { value: stats.closerCancelRate, displayValue: formatPercent(stats.closerCancelRate), meta: "キャンセル率", ascending: true };
+        default:
+          return { value: 0, displayValue: "0", meta: "", ascending: false };
+      }
+    }
+
+    function sortRanking(a, b) {
+      if (a.ascending) {
+        return a.value - b.value || a.displayValue.localeCompare(b.displayValue, "ja");
+      }
+      return b.value - a.value || a.displayValue.localeCompare(b.displayValue, "ja");
+    }
+
+    function renderPodiumCard(entry, rank) {
+      if (!entry) {
+        return `<div class="podium-card rank-${rank}"><div class="empty">データなし</div></div>`;
+      }
+      const palette = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
+      return `
+        <div class="podium-card rank-${rank}">
+          <div class="podium-main">
+            <span class="rank-badge ${palette}">${rank}位</span>
+            ${renderAvatar(entry.person, "avatar")}
+            <strong class="clickable" data-open-profile="${entry.person.id}">${escapeHtml(entry.person.nameKanji)}</strong>
+            <div class="small muted">${escapeHtml(entry.meta)}</div>
+            <div class="metric-value">${escapeHtml(entry.displayValue)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTeamPodiumCard(entry, rank) {
+      if (!entry) {
+        return `<div class="podium-card rank-${rank}"><div class="empty">データなし</div></div>`;
+      }
+      const palette = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
+      return `
+        <div class="podium-card rank-${rank}">
+          <div class="podium-main">
+            <span class="rank-badge ${palette}">${rank}位</span>
+            <strong>${escapeHtml(entry.team.name)}</strong>
+            <div class="small muted">${escapeHtml(entry.meta)}</div>
+            <div class="metric-value">${escapeHtml(entry.displayValue)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function metricCard(label, value, extraClass = "") {
+      return `
+        <article class="metric-card ${extraClass}">
+          <div class="metric-label">${label}</div>
+          <div class="metric-value">${value}</div>
+        </article>
+      `;
+    }
+
+    function staffSorter(a, b) {
+      return (a.nameKana || "").localeCompare(b.nameKana || "", "ja");
+    }
+
+    function formatPercent(value) {
+      return `${Math.round((value || 0) * 100)}％`;
+    }
+
+    function formatNumber(value) {
+      return Math.round((value || 0) * 10) / 10;
+    }
+
+    function ratio(a, b) {
+      if (!b) return 0;
+      return a / b;
+    }
+
+    function sum(items, key) {
+      return items.reduce((acc, item) => acc + Number(item[key] || 0), 0);
+    }
+
+    function isContractLike(item) {
+      return item.result === "contract" || item.result === "complete";
+    }
+
+    function formatDateTime(value) {
+      return new Date(value).toLocaleString("ja-JP", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function monthOnly(value) {
+      const date = new Date(value);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function monthLabel(month) {
+      const [year, m] = month.split("-");
+      return `${year}年${Number(m)}月`;
+    }
+
+    function quarterLabel(quarter) {
+      const [year, q] = quarter.split("-Q");
+      const n = Number(q);
+      const start = (n - 1) * 3 + 1;
+      const end = start + 2;
+      return `${year}年 第${n}クール（${start}〜${end}月）`;
+    }
+
+    function quarterOptions(selected) {
+      const year = new Date().getFullYear();
+      return [year - 1, year, year + 1].flatMap((targetYear) => {
+        return [1, 2, 3, 4].map((quarter) => {
+          const value = `${targetYear}-Q${quarter}`;
+          return `<option value="${value}" ${selected === value ? "selected" : ""}>${quarterLabel(value)}</option>`;
+        });
+      }).join("");
+    }
+
+    function toLocalDateTime(date) {
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    }
+
+    function resultLabel(result) {
+      return result === "lost" ? "失注" : result === "contract" ? "契約" : "完工";
+    }
+
+    function calcAge(birthDate) {
+      if (!birthDate) return "-";
+      const birth = new Date(birthDate);
+      const now = new Date();
+      let age = now.getFullYear() - birth.getFullYear();
+      const offset = new Date(now.getFullYear(), birth.getMonth(), birth.getDate());
+      if (now < offset) age -= 1;
+      return age;
+    }
+
+    function birthdayLabel(birthDate) {
+      if (!birthDate) return "-";
+      const date = new Date(birthDate);
+      return `${date.getMonth() + 1}月${date.getDate()}日`;
+    }
+
+    function activityPeriod(joinDate) {
+      if (!joinDate) return "-";
+      const joined = new Date(joinDate);
+      const now = new Date();
+      let months = (now.getFullYear() - joined.getFullYear()) * 12 + (now.getMonth() - joined.getMonth());
+      if (now.getDate() < joined.getDate()) months -= 1;
+      const years = Math.floor(months / 12);
+      const rest = months % 12;
+      if (years <= 0) return `${rest + 1}ヶ月目`;
+      return `${years}年${rest + 1}ヶ月目`;
+    }
+  </script>
 </body>
 </html>
+HTML
+
+def iso_now
+  Time.now.iso8601
+end
+
+def build_seed_data
+  admin_id = SecureRandom.uuid
+  staff_id = SecureRandom.uuid
+  staff2_id = SecureRandom.uuid
+  closer_id = SecureRandom.uuid
+  team_a = SecureRandom.uuid
+  team_b = SecureRandom.uuid
+
+  appointment_1 = SecureRandom.uuid
+  appointment_2 = SecureRandom.uuid
+  appointment_3 = SecureRandom.uuid
+
+  closing_1 = SecureRandom.uuid
+  closing_2 = SecureRandom.uuid
+  closing_3 = SecureRandom.uuid
+
+  {
+    "staff" => [
+      {
+        "id" => admin_id,
+        "nameKanji" => "管理者 星野",
+        "nameKana" => "かんりしゃ ほしの",
+        "gender" => "女性",
+        "birthDate" => "1992-07-12",
+        "joinDate" => "2022-04-01",
+        "teamId" => team_a,
+        "position" => "クローザー",
+        "email" => "kannrisya@gmail.com",
+        "passwordHash" => Digest::SHA256.hexdigest("kannrisya"),
+        "permission" => "admin",
+        "retiredAt" => nil,
+        "profileImage" => nil,
+        "oneWord" => "星の勢いで前進",
+        "activityStart" => "2022-04-01",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => staff_id,
+        "nameKanji" => "天城 拓海",
+        "nameKana" => "あまぎ たくみ",
+        "gender" => "男性",
+        "birthDate" => "1998-11-21",
+        "joinDate" => "2024-01-10",
+        "teamId" => team_a,
+        "position" => "アポインター",
+        "email" => "staff@gmail.com",
+        "passwordHash" => Digest::SHA256.hexdigest("staff"),
+        "permission" => "staff",
+        "retiredAt" => nil,
+        "profileImage" => nil,
+        "oneWord" => "今日も一歩ずつ",
+        "activityStart" => "2024-01-10",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => staff2_id,
+        "nameKanji" => "青葉 玲",
+        "nameKana" => "あおば れい",
+        "gender" => "女性",
+        "birthDate" => "1997-03-05",
+        "joinDate" => "2023-05-01",
+        "teamId" => team_b,
+        "position" => "アポインター",
+        "email" => "aoba@example.com",
+        "passwordHash" => Digest::SHA256.hexdigest("aoba1234"),
+        "permission" => "staff",
+        "retiredAt" => nil,
+        "profileImage" => nil,
+        "oneWord" => "丁寧に、確実に",
+        "activityStart" => "2023-05-01",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => closer_id,
+        "nameKanji" => "星河 蓮",
+        "nameKana" => "せいが れん",
+        "gender" => "男性",
+        "birthDate" => "1995-12-15",
+        "joinDate" => "2021-10-01",
+        "teamId" => team_b,
+        "position" => "クローザー",
+        "email" => "closer@example.com",
+        "passwordHash" => Digest::SHA256.hexdigest("closer1234"),
+        "permission" => "staff",
+        "retiredAt" => nil,
+        "profileImage" => nil,
+        "oneWord" => "勝ち筋を磨く",
+        "activityStart" => "2021-10-01",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      }
+    ],
+    "teams" => [
+      {
+        "id" => team_a,
+        "name" => "North Star",
+        "memberIds" => [admin_id, staff_id],
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => team_b,
+        "name" => "Blue Comet",
+        "memberIds" => [staff2_id, closer_id],
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      }
+    ],
+    "appointmentReports" => [
+      {
+        "id" => appointment_1,
+        "staffId" => staff_id,
+        "reportDate" => "2026-03-28T10:00:00+09:00",
+        "workType" => "normal",
+        "pingPong" => 110,
+        "responses" => 38,
+        "inKick" => 12,
+        "doorKick" => 8,
+        "excluded" => 6,
+        "approach" => 16,
+        "appointments" => 5,
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => appointment_2,
+        "staffId" => staff2_id,
+        "reportDate" => "2026-03-28T10:00:00+09:00",
+        "workType" => "weekday",
+        "pingPong" => 64,
+        "responses" => 25,
+        "inKick" => 7,
+        "doorKick" => 4,
+        "excluded" => 5,
+        "approach" => 9,
+        "appointments" => 3,
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => appointment_3,
+        "staffId" => staff_id,
+        "reportDate" => "2026-03-29T10:00:00+09:00",
+        "workType" => "normal",
+        "pingPong" => 96,
+        "responses" => 31,
+        "inKick" => 11,
+        "doorKick" => 6,
+        "excluded" => 3,
+        "approach" => 13,
+        "appointments" => 4,
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      }
+    ],
+    "closingReports" => [
+      {
+        "id" => closing_1,
+        "meetingDate" => "2026-03-28T19:30:00+09:00",
+        "appointmenterId" => staff_id,
+        "closerId" => admin_id,
+        "commenterId" => admin_id,
+        "customerName" => "シリウス ケンセツ",
+        "saleAmount" => 85,
+        "result" => "contract",
+        "appointmenterComment" => "丁寧な導入で信頼を得られていました。次もこの流れを再現していけば、安定して契約に繋げられる内容でした。",
+        "closerComment" => "",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => closing_2,
+        "meetingDate" => "2026-03-29T17:00:00+09:00",
+        "appointmenterId" => staff2_id,
+        "closerId" => closer_id,
+        "commenterId" => admin_id,
+        "customerName" => "アストラル ホーム",
+        "saleAmount" => 120,
+        "result" => "complete",
+        "appointmenterComment" => "ヒアリング精度が高く、商談前の期待値調整がとても良かったです。次回も冒頭の安心感づくりを意識していきましょう。",
+        "closerComment" => "提案の切り返しが落ち着いていて、最後の後押しも自然でした。この調子で成約後の着地まで再現していけます。",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      },
+      {
+        "id" => closing_3,
+        "meetingDate" => "2026-03-29T19:30:00+09:00",
+        "appointmenterId" => staff_id,
+        "closerId" => closer_id,
+        "commenterId" => admin_id,
+        "customerName" => "ルミナ ハウス",
+        "saleAmount" => 60,
+        "result" => "lost",
+        "appointmenterComment" => "切り返し前の情報共有はよくできていました。次回は温度感をもう一段深く取れれば、成約率がさらに上がります。",
+        "closerComment" => "提案の順番は良かったので、次は競合比較への返答をもう少し先回りできると受注が近づきます。",
+        "createdAt" => iso_now,
+        "updatedAt" => iso_now
+      }
+    ],
+    "errorReports" => [],
+    "sessions" => []
+  }
+end
+
+def ensure_store
+  return if File.exist?(STORE_PATH)
+  File.write(STORE_PATH, JSON.pretty_generate(build_seed_data))
+end
+
+def load_db
+  ensure_store
+  JSON.parse(File.read(STORE_PATH))
+end
+
+def save_db(db)
+  File.write(STORE_PATH, JSON.pretty_generate(db))
+end
+
+def with_db
+  DB_MUTEX.synchronize do
+    db = load_db
+    result = yield(db)
+    save_db(db)
+    result
+  end
+end
+
+def json_response(res, status, body)
+  res.status = status
+  res["Content-Type"] = "application/json; charset=utf-8"
+  res.body = JSON.generate(body)
+end
+
+def read_json(req)
+  return {} if req.body.nil? || req.body.empty?
+  JSON.parse(req.body)
+rescue JSON::ParserError
+  {}
+end
+
+def bearer_token(req)
+  header = req["Authorization"]
+  return nil unless header&.start_with?("Bearer ")
+  header.split(" ", 2)[1]
+end
+
+def authenticate!(req)
+  token = bearer_token(req)
+  return nil unless token
+  db = load_db
+  session = db["sessions"].find { |entry| entry["token"] == token }
+  return nil unless session
+  db["staff"].find { |entry| entry["id"] == session["staffId"] }
+end
+
+def admin?(user)
+  user && user["permission"] == "admin"
+end
+
+def sanitize_staff_for_viewer(staff, viewer)
+  data = {
+    "id" => staff["id"],
+    "nameKanji" => staff["nameKanji"],
+    "nameKana" => staff["nameKana"],
+    "gender" => staff["gender"],
+    "birthDate" => staff["birthDate"],
+    "joinDate" => staff["joinDate"],
+    "teamId" => staff["teamId"],
+    "position" => staff["position"],
+    "permission" => staff["permission"],
+    "retiredAt" => staff["retiredAt"],
+    "profileImage" => staff["profileImage"],
+    "oneWord" => staff["oneWord"],
+    "activityStart" => staff["activityStart"]
+  }
+  if admin?(viewer) || viewer["id"] == staff["id"]
+    data["email"] = staff["email"]
+  end
+  data
+end
+
+def build_payload(viewer, db)
+  {
+    "viewer" => sanitize_staff_for_viewer(viewer, viewer),
+    "staff" => db["staff"].sort_by { |entry| [entry["retiredAt"] ? 1 : 0, entry["nameKana"].to_s] }
+                        .map { |entry| sanitize_staff_for_viewer(entry, viewer) },
+    "teams" => db["teams"],
+    "appointmentReports" => db["appointmentReports"],
+    "closingReports" => db["closingReports"],
+    "errorReports" => admin?(viewer) ? db["errorReports"] : [],
+    "mailTarget" => MAIL_TO
+  }
+end
+
+def sync_team_memberships!(db)
+  db["teams"].each { |team| team["memberIds"] = [] }
+  db["staff"].each do |staff|
+    next unless staff["teamId"]
+    team = db["teams"].find { |entry| entry["id"] == staff["teamId"] }
+    team["memberIds"] = (team["memberIds"] + [staff["id"]]).uniq if team
+  end
+end
+
+def email_via_smtp(subject, body, from_address)
+  host = ENV["SMTP_HOST"]
+  return false unless host && !host.empty?
+  port = (ENV["SMTP_PORT"] || "587").to_i
+  username = ENV["SMTP_USERNAME"]
+  password = ENV["SMTP_PASSWORD"]
+  domain = ENV["SMTP_DOMAIN"] || "localhost"
+  auth = (ENV["SMTP_AUTH"] || "plain").to_sym
+
+  message = <<~MAIL
+    From: #{from_address}
+    To: #{MAIL_TO}
+    Subject: #{subject}
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+
+    #{body}
+  MAIL
+
+  Net::SMTP.start(host, port, domain, username, password, auth) do |smtp|
+    smtp.send_message(message, from_address, MAIL_TO)
+  end
+  true
+rescue StandardError
+  false
+end
+
+def email_via_sendmail(subject, body, from_address)
+  message = <<~MAIL
+    From: #{from_address}
+    To: #{MAIL_TO}
+    Subject: #{subject}
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+
+    #{body}
+  MAIL
+
+  stdin, wait_thr = Open3.popen2("/usr/sbin/sendmail", "-t", "-i")
+  stdin.write(message)
+  stdin.close
+  wait_thr.value.success?
+rescue StandardError
+  false
+end
+
+def deliver_error_report(report, reporter)
+  subject = "[SIRIUSLINK.LOG] システムエラー報告"
+  body = <<~BODY
+    報告日時: #{report["createdAt"]}
+    報告者: #{reporter["nameKanji"]} (#{reporter["email"]})
+    内容:
+    #{report["message"]}
+  BODY
+  from_address = ENV["MAIL_FROM"] || reporter["email"] || "no-reply@siriuslink.log"
+  email_via_smtp(subject, body, from_address) || email_via_sendmail(subject, body, from_address)
+end
+
+ensure_store
+
+server = WEBrick::HTTPServer.new(
+  Port: (ENV["PORT"] || 4567).to_i,
+  AccessLog: [],
+  Logger: WEBrick::Log.new($stdout, WEBrick::Log::INFO)
+)
+
+trap("INT") { server.shutdown }
+trap("TERM") { server.shutdown }
+
+server.mount_proc("/") do |req, res|
+  if req.path == "/" || req.path == "/index.html"
+    res.status = 200
+    res["Content-Type"] = "text/html; charset=utf-8"
+    res.body = INDEX_HTML
+  else
+    res.status = 404
+    res.body = "Not Found"
+  end
+end
+
+server.mount_proc("/api/login") do |req, res|
+  unless req.request_method == "POST"
+    json_response(res, 405, { "error" => "Method not allowed" })
+    next
+  end
+
+  body = read_json(req)
+  email = body["email"].to_s.strip.downcase
+  password = body["password"].to_s
+  hash = Digest::SHA256.hexdigest(password)
+
+  result = with_db do |db|
+    staff = db["staff"].find { |entry| entry["email"].downcase == email && entry["passwordHash"] == hash }
+    next nil unless staff
+    token = SecureRandom.hex(24)
+    db["sessions"].reject! { |session| session["staffId"] == staff["id"] }
+    db["sessions"] << { "token" => token, "staffId" => staff["id"], "createdAt" => iso_now }
+    { "token" => token, "payload" => build_payload(staff, db) }
+  end
+
+  if result
+    json_response(res, 200, result)
+  else
+    json_response(res, 401, { "error" => "メールアドレスまたはパスワードが違います。" })
+  end
+end
+
+server.mount_proc("/api/logout") do |req, res|
+  unless req.request_method == "POST"
+    json_response(res, 405, { "error" => "Method not allowed" })
+    next
+  end
+  token = bearer_token(req)
+  with_db { |db| db["sessions"].reject! { |entry| entry["token"] == token } }
+  json_response(res, 200, { "ok" => true })
+end
+
+server.mount_proc("/api/data") do |req, res|
+  viewer = authenticate!(req)
+  unless viewer
+    json_response(res, 401, { "error" => "Unauthorized" })
+    next
+  end
+  json_response(res, 200, build_payload(viewer, load_db))
+end
+
+server.mount_proc("/api/appointment_reports") do |req, res|
+  viewer = authenticate!(req)
+  unless viewer
+    json_response(res, 401, { "error" => "Unauthorized" })
+    next
+  end
+
+  case req.request_method
+  when "POST"
+    body = read_json(req)
+    report = {
+      "id" => SecureRandom.uuid,
+      "staffId" => admin?(viewer) && body["staffId"] ? body["staffId"] : viewer["id"],
+      "reportDate" => body["reportDate"],
+      "workType" => body["workType"],
+      "pingPong" => body["pingPong"].to_i,
+      "responses" => body["responses"].to_i,
+      "inKick" => body["inKick"].to_i,
+      "doorKick" => body["doorKick"].to_i,
+      "excluded" => body["excluded"].to_i,
+      "approach" => body["approach"].to_i,
+      "appointments" => body["appointments"].to_i,
+      "createdAt" => iso_now,
+      "updatedAt" => iso_now
+    }
+    with_db { |db| db["appointmentReports"] << report }
+    json_response(res, 201, { "ok" => true, "report" => report })
+  when "PUT"
+    body = read_json(req)
+    updated = with_db do |db|
+      report = db["appointmentReports"].find { |entry| entry["id"] == body["id"] }
+      next nil unless report
+      next :forbidden unless admin?(viewer) || report["staffId"] == viewer["id"]
+      %w[reportDate workType pingPong responses inKick doorKick excluded approach appointments].each do |key|
+        next unless body.key?(key)
+        report[key] = %w[pingPong responses inKick doorKick excluded approach appointments].include?(key) ? body[key].to_i : body[key]
+      end
+      report["updatedAt"] = iso_now
+      report
+    end
+
+    if updated == :forbidden
+      json_response(res, 403, { "error" => "Forbidden" })
+    elsif updated
+      json_response(res, 200, { "ok" => true, "report" => updated })
+    else
+      json_response(res, 404, { "error" => "Not found" })
+    end
+  else
+    json_response(res, 405, { "error" => "Method not allowed" })
+  end
+end
+
+server.mount_proc("/api/closing_reports") do |req, res|
+  viewer = authenticate!(req)
+  unless viewer
+    json_response(res, 401, { "error" => "Unauthorized" })
+    next
+  end
+  unless admin?(viewer)
+    json_response(res, 403, { "error" => "管理者のみ操作できます。" })
+    next
+  end
+
+  case req.request_method
+  when "POST"
+    body = read_json(req)
+    report = {
+      "id" => SecureRandom.uuid,
+      "meetingDate" => body["meetingDate"],
+      "appointmenterId" => body["appointmenterId"],
+      "closerId" => body["closerId"],
+      "commenterId" => body["commenterId"],
+      "customerName" => body["customerName"],
+      "saleAmount" => body["saleAmount"].to_f,
+      "result" => body["result"],
+      "appointmenterComment" => body["appointmenterComment"].to_s,
+      "closerComment" => body["closerComment"].to_s,
+      "createdAt" => iso_now,
+      "updatedAt" => iso_now
+    }
+    with_db { |db| db["closingReports"] << report }
+    json_response(res, 201, { "ok" => true, "report" => report })
+  when "PUT"
+    body = read_json(req)
+    updated = with_db do |db|
+      report = db["closingReports"].find { |entry| entry["id"] == body["id"] }
+      next nil unless report
+      %w[meetingDate appointmenterId closerId commenterId customerName result appointmenterComment closerComment].each do |key|
+        report[key] = body[key] if body.key?(key)
+      end
+      report["saleAmount"] = body["saleAmount"].to_f if body.key?("saleAmount")
+      report["updatedAt"] = iso_now
+      report
+    end
+
+    if updated
+      json_response(res, 200, { "ok" => true, "report" => updated })
+    else
+      json_response(res, 404, { "error" => "Not found" })
+    end
+  else
+    json_response(res, 405, { "error" => "Method not allowed" })
+  end
+end
+
+server.mount_proc("/api/staff") do |req, res|
+  viewer = authenticate!(req)
+  unless viewer
+    json_response(res, 401, { "error" => "Unauthorized" })
+    next
+  end
+
+  case req.request_method
+  when "POST"
+    unless admin?(viewer)
+      json_response(res, 403, { "error" => "管理者のみ登録できます。" })
+      next
+    end
+
+    body = read_json(req)
+    entry = {
+      "id" => SecureRandom.uuid,
+      "nameKanji" => body["nameKanji"],
+      "nameKana" => body["nameKana"],
+      "gender" => body["gender"],
+      "birthDate" => body["birthDate"],
+      "joinDate" => body["joinDate"],
+      "teamId" => body["teamId"],
+      "position" => body["position"],
+      "email" => body["email"],
+      "passwordHash" => Digest::SHA256.hexdigest(body["password"].to_s),
+      "permission" => body["permission"],
+      "retiredAt" => body["retiredAt"],
+      "profileImage" => nil,
+      "oneWord" => body["oneWord"].to_s[0, 15],
+      "activityStart" => body["joinDate"],
+      "createdAt" => iso_now,
+      "updatedAt" => iso_now
+    }
+    with_db do |db|
+      db["staff"] << entry
+      sync_team_memberships!(db)
+    end
+    json_response(res, 201, { "ok" => true, "staff" => entry })
+  when "PUT"
+    body = read_json(req)
+    updated = with_db do |db|
+      target = db["staff"].find { |entry| entry["id"] == body["id"] }
+      next nil unless target
+      allowed_self = viewer["id"] == target["id"]
+      next :forbidden unless admin?(viewer) || allowed_self
+
+      if admin?(viewer)
+        %w[nameKanji nameKana gender birthDate joinDate teamId position permission retiredAt email].each do |key|
+          target[key] = body[key] if body.key?(key)
+        end
+        target["passwordHash"] = Digest::SHA256.hexdigest(body["password"].to_s) if body["password"].to_s != ""
+        sync_team_memberships!(db)
+      end
+
+      if admin?(viewer) || allowed_self
+        target["profileImage"] = body["profileImage"] if body.key?("profileImage")
+        target["oneWord"] = body["oneWord"].to_s[0, 15] if body.key?("oneWord")
+      end
+
+      target["updatedAt"] = iso_now
+      target
+    end
+
+    if updated == :forbidden
+      json_response(res, 403, { "error" => "Forbidden" })
+    elsif updated
+      json_response(res, 200, { "ok" => true, "staff" => updated })
+    else
+      json_response(res, 404, { "error" => "Not found" })
+    end
+  else
+    json_response(res, 405, { "error" => "Method not allowed" })
+  end
+end
+
+server.mount_proc("/api/teams") do |req, res|
+  viewer = authenticate!(req)
+  unless viewer
+    json_response(res, 401, { "error" => "Unauthorized" })
+    next
+  end
+  unless admin?(viewer)
+    json_response(res, 403, { "error" => "管理者のみ操作できます。" })
+    next
+  end
+
+  case req.request_method
+  when "POST"
+    body = read_json(req)
+    team = {
+      "id" => SecureRandom.uuid,
+      "name" => body["name"],
+      "memberIds" => Array(body["memberIds"]).uniq,
+      "createdAt" => iso_now,
+      "updatedAt" => iso_now
+    }
+    with_db do |db|
+      db["teams"] << team
+      db["staff"].each do |staff|
+        staff["teamId"] = team["id"] if team["memberIds"].include?(staff["id"])
+      end
+      sync_team_memberships!(db)
+    end
+    json_response(res, 201, { "ok" => true, "team" => team })
+  when "PUT"
+    body = read_json(req)
+    updated = with_db do |db|
+      team = db["teams"].find { |entry| entry["id"] == body["id"] }
+      next nil unless team
+      team["name"] = body["name"] if body.key?("name")
+      team["memberIds"] = Array(body["memberIds"]).uniq if body.key?("memberIds")
+      if body.key?("memberIds")
+        db["staff"].each do |staff|
+          next unless team["memberIds"].include?(staff["id"]) || staff["teamId"] == team["id"]
+          staff["teamId"] = team["memberIds"].include?(staff["id"]) ? team["id"] : nil
+        end
+        sync_team_memberships!(db)
+      end
+      team["updatedAt"] = iso_now
+      team
+    end
+
+    if updated
+      json_response(res, 200, { "ok" => true, "team" => updated })
+    else
+      json_response(res, 404, { "error" => "Not found" })
+    end
+  else
+    json_response(res, 405, { "error" => "Method not allowed" })
+  end
+end
+
+server.mount_proc("/api/error_reports") do |req, res|
+  viewer = authenticate!(req)
+  unless viewer
+    json_response(res, 401, { "error" => "Unauthorized" })
+    next
+  end
+  unless req.request_method == "POST"
+    json_response(res, 405, { "error" => "Method not allowed" })
+    next
+  end
+
+  body = read_json(req)
+  report = {
+    "id" => SecureRandom.uuid,
+    "staffId" => viewer["id"],
+    "message" => body["message"].to_s,
+    "createdAt" => iso_now
+  }
+
+  with_db { |db| db["errorReports"] << report }
+  delivered = deliver_error_report(report, viewer)
+  message = delivered ? "報告を送信しました。メール転送も完了しています。" : "報告は保存しました。メール送信は環境設定未完了のため未達の可能性があります。"
+  json_response(res, 201, { "ok" => true, "delivered" => delivered, "message" => message })
+end
+
+puts "SIRIUSLINK.LOG server running at http://localhost:#{server.config[:Port]}"
+server.start
+
