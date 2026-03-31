@@ -616,15 +616,13 @@ select option{background:var(--bg3);color:var(--white)}
         <div class="fld">
           <label>メールアドレス（ID）</label>
           <input type="text" id="li-email" placeholder="example@email.com"
-            autocomplete="username" autocorrect="off" autocapitalize="none"
-            autocomplete="off" spellcheck="false" inputmode="email"
-            oninput="this.value=this.value.replace(/\s/g,'').toLowerCase()">
+            autocorrect="off" autocapitalize="none" autocomplete="off"
+            spellcheck="false" inputmode="email">
         </div>
         <div class="fld">
-          <label>パスワード（英数字小文字）</label>
+          <label>パスワード</label>
           <input type="password" id="li-pw" placeholder="••••••••"
-            autocomplete="current-password" autocorrect="off" autocapitalize="none"
-            oninput="this.value=this.value.replace(/\s/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')">
+            autocorrect="off" autocapitalize="none" autocomplete="off">
         </div>
         <button type="submit" class="btn-login">ログイン</button>
         <p class="login-err" id="li-err">メールアドレスまたはパスワードが違います</p>
@@ -1028,16 +1026,29 @@ select option{background:var(--bg3);color:var(--white)}
 <script>
 // ── STORE ──
 const S={
-  g:(k)=>{try{return JSON.parse(localStorage.getItem('sl2_'+k))}catch{return null}},
-  s:(k,v)=>localStorage.setItem('sl2_'+k,JSON.stringify(v))
+  g:(k)=>{try{return JSON.parse(localStorage.getItem('sl3_'+k))}catch{return null}},
+  s:(k,v)=>localStorage.setItem('sl3_'+k,JSON.stringify(v))
 };
 
 // ── INIT DATA ──
 function initData(){
-  if(!S.g('staffs'))S.s('staffs',[
+  // Always reset demo accounts to ensure correct credentials
+  var existingStaffs = S.g('staffs') || [];
+  var hasDemoAdmin = existingStaffs.some(function(s){return s.id==='adm1'});
+  if(!hasDemoAdmin){
+    S.s('staffs',[
     {id:'adm1',name:'管理者',furigana:'カンリシャ',email:'kannrisya@gmail.com',password:'kannrisya',role:'admin',gender:'male',birthday:'1990-01-01',joinDate:'2020-04-01',team:'',position:'クローザー',quote:'',photo:'',active:true},
     {id:'stf1',name:'スタッフ',furigana:'スタッフ',email:'staff@gmail.com',password:'staff',role:'staff',gender:'male',birthday:'1995-06-15',joinDate:'2022-01-01',team:'',position:'アポインター',quote:'',photo:'',active:true}
   ]);
+  } else {
+    // Ensure demo accounts always have correct passwords
+    var staffs = S.g('staffs') || [];
+    for(var i=0;i<staffs.length;i++){
+      if(staffs[i].id==='adm1'){staffs[i].email='kannrisya@gmail.com';staffs[i].password='kannrisya';staffs[i].active=true;}
+      if(staffs[i].id==='stf1'){staffs[i].email='staff@gmail.com';staffs[i].password='staff';staffs[i].active=true;}
+    }
+    S.s('staffs',staffs);
+  }
   if(!S.g('teams'))S.s('teams',[]);
   if(!S.g('apo_rep'))S.s('apo_rep',[]);
   if(!S.g('clo_rep'))S.s('clo_rep',[]);
@@ -1051,21 +1062,71 @@ function initData(){
 }
 
 // ── AUTH ──
-let CU=null;
-// ── AUTH HELPERS ──
-function normEM(v){return(v||'').replace(/\s/g,'').toLowerCase();}
-function normPW(v){return(v||'').replace(/\s/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+var CU = null;
 
 function doLogin(){
-  const em=normEM(document.getElementById('li-email').value);
-  const pw=normPW(document.getElementById('li-pw').value);
-  const errEl=document.getElementById('li-err');
-  if(!em||!pw){errEl.textContent='IDとパスワードを入力してください';errEl.style.display='block';return}
-  const allStaffs=S.g('staffs')||[];
-  const uFound=allStaffs.find(s=>normEM(s.email)===em&&normPW(s.password)===pw);
-  if(!uFound){errEl.textContent='メールアドレスまたはパスワードが違います';errEl.style.display='block';return}
-  if(uFound.active===false){errEl.textContent='このアカウントは無効です。管理者にお問い合わせください。';errEl.style.display='block';return}
-  CU=uFound;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';initApp();
+  var emailInput = document.getElementById('li-email');
+  var pwInput = document.getElementById('li-pw');
+  var errEl = document.getElementById('li-err');
+  
+  var em = emailInput.value;
+  var pw = pwInput.value;
+  
+  // Strip leading/trailing spaces
+  while(em.length > 0 && em.charCodeAt(0) <= 32) em = em.slice(1);
+  while(em.length > 0 && em.charCodeAt(em.length-1) <= 32) em = em.slice(0,-1);
+  while(pw.length > 0 && pw.charCodeAt(0) <= 32) pw = pw.slice(1);
+  while(pw.length > 0 && pw.charCodeAt(pw.length-1) <= 32) pw = pw.slice(0,-1);
+  
+  // Lowercase
+  em = em.toLowerCase();
+  pw = pw.toLowerCase();
+  
+  if(!em || !pw){
+    errEl.textContent = 'IDとパスワードを入力してください';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  var allStaffs = S.g('staffs') || [];
+  var uFound = null;
+  
+  for(var i = 0; i < allStaffs.length; i++){
+    var staff = allStaffs[i];
+    var storedEM = staff.email || '';
+    var storedPW = staff.password || '';
+    
+    // Strip stored values too
+    while(storedEM.length > 0 && storedEM.charCodeAt(0) <= 32) storedEM = storedEM.slice(1);
+    while(storedEM.length > 0 && storedEM.charCodeAt(storedEM.length-1) <= 32) storedEM = storedEM.slice(0,-1);
+    while(storedPW.length > 0 && storedPW.charCodeAt(0) <= 32) storedPW = storedPW.slice(1);
+    while(storedPW.length > 0 && storedPW.charCodeAt(storedPW.length-1) <= 32) storedPW = storedPW.slice(0,-1);
+    
+    storedEM = storedEM.toLowerCase();
+    storedPW = storedPW.toLowerCase();
+    
+    if(storedEM === em && storedPW === pw){
+      uFound = staff;
+      break;
+    }
+  }
+  
+  if(!uFound){
+    errEl.textContent = 'メールアドレスまたはパスワードが違います';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(uFound.active === false){
+    errEl.textContent = 'このアカウントは無効です。管理者にお問い合わせください。';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  errEl.style.display = 'none';
+  CU = uFound;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initApp();
 }
 function doLogout(){
   CU=null;document.getElementById('app').style.display='none';
@@ -1896,8 +1957,8 @@ function submitStaff(){
   const obj={name:n,furigana:document.getElementById('sf-f').value,gender:document.getElementById('sf-g').value,
     birthday:document.getElementById('sf-b').value,joinDate:document.getElementById('sf-j').value,
     team:document.getElementById('sf-t').value,position:document.getElementById('sf-pos').value,
-    role:document.getElementById('sf-r').value,email:normEM(em),quote:'',photo:'',active:true};
-  const pw=normPW(document.getElementById('sf-pw').value);
+    role:document.getElementById('sf-r').value,email:em.trim().toLowerCase(),quote:'',photo:'',active:true};
+  var sfpw=document.getElementById('sf-pw').value.trim().toLowerCase();var pw=sfpw;
   if(editSfId){
     const idx=staffs.findIndex(s=>s.id===editSfId);
     if(idx>=0){staffs[idx]={...staffs[idx],...obj};if(pw)staffs[idx].password=pw}
