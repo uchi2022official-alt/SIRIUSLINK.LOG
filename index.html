@@ -551,18 +551,14 @@ function initData(cb) {
 var CU = null;
 
 function doLogin() {
-  var emailEl = document.getElementById('li-email');
-  var pwEl = document.getElementById('li-pw');
-  var errEl = document.getElementById('li-err');
+  var errEl  = document.getElementById('li-err');
   var loadEl = document.getElementById('li-loading');
+  errEl.style.display = 'none';
 
-  // Get raw values
-  var rawEM = emailEl.value;
-  var rawPW = pwEl.value;
-
-  // Clean: remove all whitespace, lowercase
-  var em = '';
-  var pw = '';
+  // 入力値クリーニング（スペース除去・小文字化）
+  var rawEM = document.getElementById('li-email').value;
+  var rawPW = document.getElementById('li-pw').value;
+  var em = '', pw = '';
   for (var i = 0; i < rawEM.length; i++) {
     var c = rawEM.charCodeAt(i);
     if (c > 32 && c !== 160 && c !== 12288) em += rawEM[i];
@@ -574,27 +570,19 @@ function doLogin() {
   em = em.toLowerCase();
   pw = pw.toLowerCase();
 
-  errEl.style.display = 'none';
-
   if (!em || !pw) {
     errEl.textContent = 'IDとパスワードを入力してください';
     errEl.style.display = 'block';
     return;
   }
 
-  // Show loading
-  loadEl.style.display = 'block';
-
-  // Sync from cloud then try login
-  function tryLogin() {
-    loadEl.style.display = 'none';
-    var allStaffs = DB.getSync('staffs') || [];
-    var found = null;
-    for (var i = 0; i < allStaffs.length; i++) {
-      var s = allStaffs[i];
-      var sEM = '';
-      var sPW = '';
-      var se = String(s.email || '');
+  // スタッフ一覧と照合する関数
+  function matchIn(list) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      var sEM = '', sPW = '';
+      var se = String(s.email    || '');
       var sp = String(s.password || '');
       for (var j = 0; j < se.length; j++) {
         var c = se.charCodeAt(j);
@@ -604,10 +592,14 @@ function doLogin() {
         var c = sp.charCodeAt(j);
         if (c > 32 && c !== 160 && c !== 12288) sPW += sp[j];
       }
-      sEM = sEM.toLowerCase();
-      sPW = sPW.toLowerCase();
-      if (sEM === em && sPW === pw) { found = s; break; }
+      if (sEM.toLowerCase() === em && sPW.toLowerCase() === pw) return s;
     }
+    return null;
+  }
+
+  // ログイン実行
+  function proceed(found) {
+    if (loadEl) loadEl.style.display = 'none';
     if (!found) {
       errEl.textContent = 'メールアドレスまたはパスワードが違います';
       errEl.style.display = 'block';
@@ -622,8 +614,29 @@ function doLogin() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initApp();
+    // ログイン後にバックグラウンドで全データ同期
+    setTimeout(function() {
+      DB.syncFromCloud(ALL_KEYS, function() {});
+    }, 800);
   }
 
+  // ① まずローカルキャッシュで即座に照合（待ち時間ゼロ）
+  var cached = DB.getSync('staffs');
+  var found  = matchIn(cached);
+  if (found) { proceed(found); return; }
+
+  // ② キャッシュになければSupabaseから取得（初回のみ発生）
+  if (loadEl) loadEl.style.display = 'block';
+  sbRead('staffs').then(function(v) {
+    if (v) {
+      DB.set('staffs', v);
+      proceed(matchIn(v));
+    } else {
+      proceed(null);
+    }
+  }).catch(function() {
+    proceed(null);
+  });
 }
 
 function doLogout() {
@@ -1244,23 +1257,19 @@ function resetSBConfig() {
 
 // ── START ──
 (function() {
-  // Supabaseは設定済み（ハードコード済み）
-  // initDataは同期処理のみ → 即座に完了、ログイン画面がすぐ表示される
+  // ① ローカルキャッシュで即座に初期化（ログイン画面はすぐ表示）
   initData(function() {
     document.getElementById('li-email').focus();
   });
 
-  // バックグラウンドでstaffsを先行同期（ログイン画面をブロックしない）
-  setTimeout(function() {
-    sbRead('staffs').then(function(v) {
-      if (v) {
-        try {
-          localStorage.setItem('sirl5_staffs', JSON.stringify(v));
-          CACHE['staffs'] = v;
-        } catch(e) {}
-      }
-    }).catch(function(){});
-  }, 0);
+  // ② バックグラウンドでstaffsをプリフェッチ
+  //    → ログインボタン押下時にはキャッシュ済みになるので即座にログインできる
+  sbRead('staffs').then(function(v) {
+    if (v) {
+      try { localStorage.setItem('sirl5_staffs', JSON.stringify(v)); } catch(e) {}
+      CACHE['staffs'] = v;
+    }
+  }).catch(function() {});
 })();
 
 </script>
