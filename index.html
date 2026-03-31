@@ -1024,42 +1024,115 @@ select option{background:var(--bg3);color:var(--white)}
 </div>
 
 <script>
-// ── STORE ──
-const S={
-  g:(k)=>{try{return JSON.parse(localStorage.getItem('sl3_'+k))}catch{return null}},
-  s:(k,v)=>localStorage.setItem('sl3_'+k,JSON.stringify(v))
+// ── CONFIG: Supabaseの設定をここに入力 ──
+const SUPABASE_URL = '';  // 例: https://xxxx.supabase.co
+const SUPABASE_KEY = '';  // anon public key
+
+// ── STORE: Supabase + localStorageフォールバック ──
+const useSupabase = SUPABASE_URL && SUPABASE_KEY;
+
+// localStorageキャッシュ（オフライン時・高速読み込み用）
+const LC = {
+  g:(k)=>{try{return JSON.parse(localStorage.getItem('sl4_'+k))}catch{return null}},
+  s:(k,v)=>localStorage.setItem('sl4_'+k,JSON.stringify(v))
+};
+
+// Supabaseへのシンプルなアクセス関数
+async function sbGet(table){
+  if(!useSupabase) return LC.g(table);
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    });
+    if(!res.ok) throw new Error('fetch failed');
+    const rows = await res.json();
+    // テーブルによってデータ形式を変換
+    const data = rows.length > 0 && rows[0].data !== undefined
+      ? rows[0].data  // single-row JSON storage
+      : rows;
+    LC.s(table, data); // キャッシュ更新
+    return data;
+  } catch(e){
+    console.warn('Supabase read failed, using cache:', e);
+    return LC.g(table);
+  }
+}
+
+async function sbSet(table, val){
+  LC.s(table, val); // 即座にローカルキャッシュ更新
+  if(!useSupabase) return;
+  try{
+    // upsert: id=1固定行にJSONを保存するシングルドキュメント方式
+    await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({id:1, data: val})
+    });
+  } catch(e){
+    console.warn('Supabase write failed:', e);
+  }
+}
+
+// 後方互換のための同期ラッパー（localStorageキャッシュから読む）
+const S = {
+  g:(k) => LC.g(k),
+  s:(k,v) => { LC.s(k,v); sbSet(k,v); }
 };
 
 // ── INIT DATA ──
-function initData(){
-  // Always reset demo accounts to ensure correct credentials
-  var existingStaffs = S.g('staffs') || [];
-  var hasDemoAdmin = existingStaffs.some(function(s){return s.id==='adm1'});
-  if(!hasDemoAdmin){
-    S.s('staffs',[
-    {id:'adm1',name:'管理者',furigana:'カンリシャ',email:'kannrisya@gmail.com',password:'kannrisya',role:'admin',gender:'male',birthday:'1990-01-01',joinDate:'2020-04-01',team:'',position:'クローザー',quote:'',photo:'',active:true},
-    {id:'stf1',name:'スタッフ',furigana:'スタッフ',email:'staff@gmail.com',password:'staff',role:'staff',gender:'male',birthday:'1995-06-15',joinDate:'2022-01-01',team:'',position:'アポインター',quote:'',photo:'',active:true}
-  ]);
-  } else {
-    // Ensure demo accounts always have correct passwords
-    var staffs = S.g('staffs') || [];
-    for(var i=0;i<staffs.length;i++){
-      if(staffs[i].id==='adm1'){staffs[i].email='kannrisya@gmail.com';staffs[i].password='kannrisya';staffs[i].active=true;}
-      if(staffs[i].id==='stf1'){staffs[i].email='staff@gmail.com';staffs[i].password='staff';staffs[i].active=true;}
-    }
-    S.s('staffs',staffs);
+const DEFAULT_STAFFS = [
+  {id:'adm1',name:'管理者',furigana:'カンリシャ',email:'kannrisya@gmail.com',password:'kannrisya',role:'admin',gender:'male',birthday:'1990-01-01',joinDate:'2020-04-01',team:'',position:'クローザー',quote:'',photo:'',active:true},
+  {id:'stf1',name:'スタッフ',furigana:'スタッフ',email:'staff@gmail.com',password:'staff',role:'staff',gender:'male',birthday:'1995-06-15',joinDate:'2022-01-01',team:'',position:'アポインター',quote:'',photo:'',active:true}
+];
+
+async function initData(){
+  // Load all data from Supabase (or localStorage cache)
+  const tables = ['staffs','teams','apo_rep','clo_rep','tl_items','thanks','link_pts','coins_cfg','coins_used','prizes','reactions','err_rep'];
+  for(const t of tables){
+    const data = await sbGet(t);
+    if(data !== null) LC.s(t, data);
   }
-  if(!S.g('teams'))S.s('teams',[]);
-  if(!S.g('apo_rep'))S.s('apo_rep',[]);
-  if(!S.g('clo_rep'))S.s('clo_rep',[]);
-  if(!S.g('tl_items'))S.s('tl_items',[]);
-  if(!S.g('thanks'))S.s('thanks',[]);
-  if(!S.g('link_pts'))S.s('link_pts',{});
-  if(!S.g('coins_cfg'))S.s('coins_cfg',{monthly:5});
-  if(!S.g('coins_used'))S.s('coins_used',{});
-  if(!S.g('prizes'))S.s('prizes',[]);
-  if(!S.g('reactions'))S.s('reactions',{});
+
+  // Initialize defaults if not set
+  if(!S.g('staffs') || S.g('staffs').length === 0){
+    S.s('staffs', DEFAULT_STAFFS);
+  } else {
+    // Always ensure demo accounts have correct credentials
+    var staffs = S.g('staffs') || [];
+    var changed = false;
+    for(var i=0;i<staffs.length;i++){
+      if(staffs[i].id==='adm1'){
+        staffs[i].email='kannrisya@gmail.com';
+        staffs[i].password='kannrisya';
+        staffs[i].active=true;
+        changed=true;
+      }
+      if(staffs[i].id==='stf1'){
+        staffs[i].email='staff@gmail.com';
+        staffs[i].password='staff';
+        staffs[i].active=true;
+        changed=true;
+      }
+    }
+    if(changed) S.s('staffs', staffs);
+  }
+  if(!S.g('teams')) S.s('teams',[]);
+  if(!S.g('apo_rep')) S.s('apo_rep',[]);
+  if(!S.g('clo_rep')) S.s('clo_rep',[]);
+  if(!S.g('tl_items')) S.s('tl_items',[]);
+  if(!S.g('thanks')) S.s('thanks',[]);
+  if(!S.g('link_pts')) S.s('link_pts',{});
+  if(!S.g('coins_cfg')) S.s('coins_cfg',{monthly:5});
+  if(!S.g('coins_used')) S.s('coins_used',{});
+  if(!S.g('prizes')) S.s('prizes',[]);
+  if(!S.g('reactions')) S.s('reactions',{});
 }
+
 
 // ── AUTH ──
 var CU = null;
@@ -2107,8 +2180,16 @@ function getActiveStaffs(){return(S.g('staffs')||[]).filter(s=>s.active!==false&
 function fmtDt(iso){const d=new Date(iso);return`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 
 // ── START ──
-initData();
 document.getElementById('li-email').focus();
+// Show loading state then init
+(async function(){
+  try{
+    await initData();
+  } catch(e){
+    console.error('initData error:', e);
+  }
+  document.getElementById('li-email').focus();
+})();
 </script>
 </body>
 </html>
