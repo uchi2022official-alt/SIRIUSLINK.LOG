@@ -408,6 +408,7 @@ select option{background:var(--bg3);color:var(--white)}
       </div>
     </div>
     <div class="h-right">
+      <button onclick="toggleTheme()" title="テーマ切替" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--white3);cursor:pointer;font-size:.82rem;letter-spacing:.02em;font-family:inherit;transition:.2s">☀/🌙</button>
       <div class="h-user" id="h-uname"></div>
       <div class="h-av" id="h-av"></div>
     </div>
@@ -805,10 +806,27 @@ function periodLabel(ctx) {
 // TIMELINE
 // ═══════════════════════════════════════════
 function renderTL() {
-  var items = (DB.getSync('tl_items')||[]).sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); }).slice(0,20);
+  var all = (DB.getSync('tl_items')||[]).sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
   var el = document.getElementById('tl-list');
-  if (!items.length) { el.innerHTML = '<div style="text-align:center;color:var(--white3);padding:40px;font-size:.85rem">まだ投稿がありません</div>'; return; }
-  el.innerHTML = items.map(function(item){ return renderTLItem(item); }).join('');
+  if(!el) return;
+
+  // タブ状態
+  var tab = window._tlTab || 'all';
+  var filtered = tab==='all'?all:all.filter(function(i){return i.type===(tab==='contract'?'contract':'thanks');});
+  var items = filtered.slice(0,10);
+
+  var tabHtml = '<div style="display:flex;gap:8px;margin-bottom:20px;">'
+    +['all','contract','thanks'].map(function(t){
+      var lbl={all:'すべて',contract:'🏆 契約報告',thanks:'🪙 ありがとう'}[t];
+      var on = tab===t;
+      return '<button onclick="window._tlTab=''+t+'';renderTL();" style="padding:7px 16px;border-radius:20px;border:1px solid '+(on?'var(--blue3)':'var(--border)')+';background:'+(on?'var(--blue2)':'transparent')+';color:'+(on?'white':'var(--white3)')+';font-size:.78rem;font-weight:700;font-family:inherit;cursor:pointer;transition:.15s">'+lbl+'</button>';
+    }).join('')+'</div>';
+
+  if (!items.length) {
+    el.innerHTML = tabHtml+'<div style="text-align:center;color:var(--white3);padding:40px;font-size:.85rem">まだ投稿がありません</div>';
+    return;
+  }
+  el.innerHTML = tabHtml + items.map(function(item){ return renderTLItem(item); }).join('');
 }
 function renderTLItem(item) {
   var reactions = DB.getSync('reactions') || {};
@@ -816,26 +834,66 @@ function renderTLItem(item) {
   var myReact = ir[CU.id] || null;
   var counts = {};
   Object.keys(ir).forEach(function(uid){ var e=ir[uid]; counts[e]=(counts[e]||0)+1; });
+
   var content = '';
   if (item.type === 'contract') {
     var d = new Date(item.date);
-    content = '<div class="tl-type">🏆 CONTRACT</div>'
-      +'<div class="tl-heading">🎉 ご契約おめでとうございます！</div>'
-      +'<div class="tl-meta"><span><strong>'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日</strong></span>'
-      +'<span>アポ：<strong>'+item.appointerName+'</strong></span>'
-      +'<span>クロ：<strong>'+item.closerName+'</strong></span>'
-      +'<span>顧客：<strong>'+item.customer+'様</strong></span></div>'
-      +(item.apoComment?'<div class="tl-comment"><strong>'+item.commenterName+'</strong>→<strong>'+item.appointerName+'</strong>さんへ：'+item.apoComment+'</div>':'')
-      +(item.cloComment?'<div class="tl-comment" style="margin-top:5px"><strong>'+item.commenterName+'</strong>→<strong>'+item.closerName+'</strong>さんへ：'+item.cloComment+'</div>':'');
+    var dateStr = d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日';
+    content = ''
+      // ヘッダー帯
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+        +'<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:10px;padding:6px 14px;font-size:.7rem;font-weight:900;color:white;letter-spacing:.12em;text-transform:uppercase">🏆 CONTRACT</div>'
+        +'<div style="font-size:.78rem;color:var(--white3)">'+dateStr+'</div>'
+        +(item.sales?'<div style="margin-left:auto;background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.08));border:1px solid rgba(16,185,129,.35);border-radius:8px;padding:4px 12px;font-size:.82rem;font-weight:700;color:#10b981">'+item.sales+'万円</div>':'')
+      +'</div>'
+      // タイトル
+      +'<div style="font-size:1.1rem;font-weight:900;color:var(--white);margin-bottom:12px;letter-spacing:.02em">🎉 ご契約おめでとうございます！</div>'
+      // 情報タグ
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">'
+        +'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:.78rem"><span style="color:var(--white3)">アポ ▎</span><strong style="color:var(--white)">'+item.appointerName+'</strong></div>'
+        +'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:.78rem"><span style="color:var(--white3)">クロ ▎</span><strong style="color:var(--white)">'+item.closerName+'</strong></div>'
+        +'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:.78rem"><span style="color:var(--white3)">顧客 ▎</span><strong style="color:var(--white)">'+item.customer+'様</strong></div>'
+      +'</div>'
+      // コメント（強調）
+      +(item.apoComment?''
+        +'<div style="background:linear-gradient(135deg,rgba(37,99,235,.15),rgba(37,99,235,.05));border:1px solid rgba(59,130,246,.35);border-left:4px solid var(--blue3);border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:8px">'
+          +'<div style="font-size:.68rem;font-weight:700;color:var(--blue4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">'+item.commenterName+' → '+item.appointerName+'さんへ</div>'
+          +'<div style="font-size:.88rem;color:var(--white);line-height:1.7;font-weight:500">'+item.apoComment+'</div>'
+        +'</div>':'')
+      +(item.cloComment?''
+        +'<div style="background:linear-gradient(135deg,rgba(37,99,235,.15),rgba(37,99,235,.05));border:1px solid rgba(59,130,246,.35);border-left:4px solid var(--blue3);border-radius:0 10px 10px 0;padding:14px 16px">'
+          +'<div style="font-size:.68rem;font-weight:700;color:var(--blue4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">'+item.commenterName+' → '+item.closerName+'さんへ</div>'
+          +'<div style="font-size:.88rem;color:var(--white);line-height:1.7;font-weight:500">'+item.cloComment+'</div>'
+        +'</div>':'');
   } else if (item.type === 'thanks') {
-    content = '<div class="tl-type">🪙 THANK YOU</div>'
-      +'<div class="tl-heading"><strong>'+item.fromName+'</strong> → <strong>'+item.toName+'</strong></div>'
-      +'<div class="tl-comment thanks-comment">'+item.message+'</div>';
+    content = ''
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+        +'<div style="background:linear-gradient(135deg,#92400e,#d97706);border-radius:10px;padding:6px 14px;font-size:.7rem;font-weight:900;color:white;letter-spacing:.12em;text-transform:uppercase">🪙 THANK YOU</div>'
+        +'<div style="font-size:.78rem;color:var(--white3)">'+fmtDt(item.createdAt)+'</div>'
+      +'</div>'
+      +'<div style="font-size:1rem;font-weight:900;color:var(--white);margin-bottom:14px">'
+        +'<span style="color:var(--blue4)">'+item.fromName+'</span>'
+        +' <span style="color:var(--white3);font-size:.85rem;font-weight:400">→</span> '
+        +'<span style="color:var(--coin)">'+item.toName+'</span>'
+      +'</div>'
+      +'<div style="background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(251,191,36,.04));border:1px solid rgba(251,191,36,.3);border-left:4px solid var(--coin);border-radius:0 10px 10px 0;padding:14px 16px">'
+        +'<div style="font-size:.88rem;color:var(--white);line-height:1.7;font-weight:500">'+item.message+'</div>'
+      +'</div>';
   }
-  var reactBtns = Object.keys(counts).map(function(e){ return '<button class="react-btn'+(myReact===e?' reacted':'')+'" onclick="toggleReact(\''+item.id+'\',\''+e+'\')">'+e+' '+counts[e]+'</button>'; }).join('');
-  return '<div class="tl-item tl-'+item.type+'" id="tl-'+item.id+'">'+content
-    +'<div class="reactions" id="reactions-'+item.id+'">'+reactBtns
-    +'<button class="react-add" onclick="showEmojiPicker(\''+item.id+'\',this)">＋</button></div></div>';
+
+  var reactBtns = Object.keys(counts).map(function(e){
+    return '<button class="react-btn'+(myReact===e?' reacted':'')+'" onclick="toggleReact(''+item.id+'',''+e+'')">'+e+' '+counts[e]+'</button>';
+  }).join('');
+
+  // カード外枠スタイル
+  var borderColor = item.type==='contract'?'rgba(59,130,246,.3)':'rgba(251,191,36,.25)';
+  var topGlow = item.type==='contract'?'var(--blue3)':'var(--coin)';
+  return '<div class="tl-item tl-'+item.type+'" id="tl-'+item.id+'" style="border-color:'+borderColor+';position:relative;overflow:hidden">'
+    +'<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,'+topGlow+',transparent)"></div>'
+    +content
+    +'<div class="reactions" id="reactions-'+item.id+'" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border2)">'+reactBtns
+    +'<button class="react-add" onclick="showEmojiPicker(''+item.id+'',this)">＋ リアクション</button></div>'
+    +'</div>';
 }
 function toggleReact(itemId, emoji) {
   var reactions = DB.getSync('reactions') || {};
@@ -870,6 +928,7 @@ function renderOv() {
   ar.forEach(function(r){days+=r.dy==='weekday'?.3:1;pp+=r.pp||0;ta+=r.ta||0;ik+=r.ik||0;dk+=r.dk||0;tg+=r.tg||0;pu+=r.pu||0;ao+=r.ao||0;});
   var shd=cr.length, cont=cr.filter(function(r){return r.rs==='contract'||r.rs==='complete';}).length;
   var comp=cr.filter(function(r){return r.rs==='complete';}).length;
+  var totalSales=cr.filter(function(r){return r.rs==='complete';}).reduce(function(a,r){return a+(r.sales||0);},0);
   var ppComp=pp>0?Math.round(comp/pp*100):0, avgPP=days>0?Math.round(pp/days):0;
   var cancel=cont>0?Math.round((cont-comp)/cont*100):0;
   var ppTaio=pp>0?Math.round(ta/pp*100):0, taioIk=ta>0?Math.round(ik/ta*100):0;
@@ -877,8 +936,9 @@ function renderOv() {
   var aoShd=ao>0?Math.round(shd/ao*100):0, shdComp=shd>0?Math.round(comp/shd*100):0;
   var staffs = getActiveStaffs();
   document.getElementById('ov-body').innerHTML =
-    '<div class="g2" style="margin-bottom:12px">'
+    '<div class="g3" style="margin-bottom:12px">'
     +'<div class="stat-card lg blue-accent"><div class="stat-lbl">総完工数</div><div class="stat-val">'+comp+'<span class="unit">件</span></div></div>'
+    +'<div class="stat-card lg" style="background:linear-gradient(135deg,rgba(16,185,129,.12),var(--bg2));border-color:rgba(16,185,129,.3)"><div class="stat-lbl">合計売上</div><div class="stat-val" style="color:#10b981">'+totalSales+'<span class="unit">万</span></div></div>'
     +'<div class="stat-card lg"><div class="stat-lbl">ピンポン完工率</div><div class="stat-val" style="color:var(--success)">'+ppComp+'<span class="unit">%</span></div></div>'
     +'</div><div class="g2" style="margin-bottom:12px">'
     +'<div class="stat-card lg"><div class="stat-lbl">1日平均ピンポン</div><div class="stat-val">'+avgPP+'<span class="unit">件</span></div></div>'
@@ -1097,9 +1157,30 @@ function renderApoHist(){
   el.innerHTML=reps.map(function(r){var d=new Date(r.date);return'<div class="hi"><div class="hi-date">'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 ('+(r.dy==='weekday'?'平日':'通常')+')</div><div class="hi-stats"><div class="hi-stat"><span>ﾋﾟﾝﾎﾟﾝ</span><strong>'+r.pp+'</strong></div><div class="hi-stat"><span>対応</span><strong>'+r.ta+'</strong></div><div class="hi-stat"><span>アプ</span><strong>'+r.pu+'</strong></div><div class="hi-stat"><span>アポ</span><strong>'+r.ao+'</strong></div></div><div class="hi-btns"><button class="btn btn-s btn-sm" onclick="editApoRep(\''+r.id+'\')">編集</button></div></div>';}).join('');
 }
 function editApoRep(id){var r=(DB.getSync('apo_rep')||[]).find(function(x){return x.id===id;});if(!r)return;editApoId=id;var rdt=document.getElementById('r-dt');if(rdt)rdt.value=r.date;var rdy=document.getElementById('r-dy');if(rdy)rdy.value=r.dy||'normal';['pp','ta','ik','dk','tg','pu','ao'].forEach(function(k){var el=document.getElementById('r-'+k);if(el)el.value=r[k]||0;});var rce=document.getElementById('r-ce');if(rce)rce.style.display='inline-flex';document.querySelector('#page-report .card')?.scrollIntoView({behavior:'smooth'});}
-function popStaffSels(){var staffs=getActiveStaffs();['c-ap','c-cl','c-cm'].forEach(function(id){var el=document.getElementById(id);if(!el)return;el.innerHTML=staffs.map(function(s){return'<option value="'+s.id+'">'+s.name+'</option>';}).join('');});var tkTo=document.getElementById('tk-to');if(tkTo)tkTo.innerHTML=staffs.filter(function(s){return s.id!==CU.id;}).map(function(s){return'<option value="'+s.id+'">'+s.name+'</option>';}).join('');}
+
+function toggleSalesField(){
+  var rs=document.getElementById('c-rs');
+  var wrap=document.getElementById('c-sales-wrap');
+  if(rs&&wrap) wrap.style.display=rs.value==='lost'?'none':'flex';
+}
+
+function popStaffSels(){
+  // クロージング報告の選択肢は全スタッフ（管理者含む・退社者除く）
+  var allActive=(DB.getSync('staffs')||[]).filter(function(s){return s.active!==false;});
+  var opts=allActive.map(function(s){return'<option value="'+s.id+'">'+s.name+'</option>';}).join('');
+  ['c-ap','c-cl','c-cm'].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;el.innerHTML=opts;
+  });
+  // ありがとう送り先はスタッフのみ（自分除く）
+  var tkTo=document.getElementById('tk-to');
+  if(tkTo){
+    var staffs=getActiveStaffs();
+    tkTo.innerHTML=staffs.filter(function(s){return s.id!==CU.id;}).map(function(s){return'<option value="'+s.id+'">'+s.name+'</option>';}).join('');
+  }
+}
 function submitClo(){
   var date=document.getElementById('c-dt')?.value,apoId=document.getElementById('c-ap')?.value,cloId=document.getElementById('c-cl')?.value,cmtId=document.getElementById('c-cm')?.value,cu=document.getElementById('c-cu')?.value.trim(),rs=document.getElementById('c-rs')?.value,ac=document.getElementById('c-ac')?.value.trim(),cc=document.getElementById('c-cc')?.value.trim();
+  var sales=rs!=='lost'?(parseFloat(document.getElementById('c-sales')?.value)||0):0;
   if(!date||!cu){showToast('必須項目を入力してください','e');return;}
   if(ac.length<50||ac.length>100){showToast('アポコメントは50〜100文字','e');return;}
   if(cc&&(cc.length<50||cc.length>100)){showToast('クロコメントは50〜100文字（または空欄）','e');return;}
@@ -1107,11 +1188,11 @@ function submitClo(){
   var aN=(staffs.find(function(s){return s.id===apoId;})||{}).name||'';
   var cN=(staffs.find(function(s){return s.id===cloId;})||{}).name||'';
   var cmN=(staffs.find(function(s){return s.id===cmtId;})||{}).name||'';
-  var rep={id:editCloId||gid(),date:date,apo_id:apoId,clo_id:cloId,cmt_id:cmtId,apoN:aN,cloN:cN,cmtN:cmN,cu:cu,rs:rs,ac:ac,cc:cc,createdAt:new Date().toISOString()};
+  var rep={id:editCloId||gid(),date:date,apo_id:apoId,clo_id:cloId,cmt_id:cmtId,apoN:aN,cloN:cN,cmtN:cmN,cu:cu,rs:rs,ac:ac,cc:cc,sales:sales,createdAt:new Date().toISOString()};
   var reps=DB.getSync('clo_rep')||[];var isEdit=!!editCloId;
   if(editCloId){var idx=-1;for(var i=0;i<reps.length;i++)if(reps[i].id===editCloId){idx=i;break;}if(idx>=0)reps[idx]=rep;}else reps.push(rep);
   DB.set('clo_rep',reps);
-  if(!isEdit&&(rs==='contract'||rs==='complete')){addTLItem({id:gid(),type:'contract',date:date,appointerName:aN,closerName:cN,commenterName:cmN,customer:cu,apoComment:ac,cloComment:cc,createdAt:new Date().toISOString()});showPushNotif('🎉 ご契約！ アポ:'+aN+' クロ:'+cN+' '+cu+'様');}
+  if(!editCloId&&(rs==='contract'||rs==='complete')){addTLItem({id:gid(),type:'contract',date:date,appointerName:aN,closerName:cN,commenterName:cmN,customer:cu,apoComment:ac,cloComment:cc,createdAt:new Date().toISOString()});showPushNotif('🎉 ご契約！ アポ:'+aN+' クロ:'+cN+' '+cu+'様');}
   editCloId=null;var cce=document.getElementById('c-ce');if(cce)cce.style.display='none';
   resetCloForm();renderCloHist();showToast('クロージング報告を送信しました','s');
 }
@@ -1163,13 +1244,88 @@ function submitError(){var rep=document.getElementById('er-rep')?.value,sub=docu
 // HISTORY
 // ═══════════════════════════════════════════
 function popHistStaff(){var sel=document.getElementById('hi-st');if(!sel)return;sel.innerHTML='<option value="all">全スタッフ</option>'+(DB.getSync('staffs')||[]).map(function(s){return'<option value="'+s.id+'">'+s.name+'</option>';}).join('');}
-function renderHist(){var y=parseInt(document.getElementById('hi-y')?.value||new Date().getFullYear()),m=document.getElementById('hi-m')?.value||'all',sid=document.getElementById('hi-st')?.value||'all';var reps=(DB.getSync('apo_rep')||[]).filter(function(r){var d=new Date(r.date);if(d.getFullYear()!==y)return false;if(m!=='all'&&d.getMonth()+1!==parseInt(m))return false;if(sid!=='all'&&r.sid!==sid)return false;return true;}).sort(function(a,b){return b.date.localeCompare(a.date);});var el=document.getElementById('hist-body');if(!el)return;if(!reps.length){el.innerHTML='<div style="color:var(--white3);padding:18px;font-size:.85rem">データがありません</div>';return;}el.innerHTML=reps.map(function(r){var d=new Date(r.date);return'<div class="hi"><div class="hi-date">'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 - <strong>'+r.sname+'</strong> ('+(r.dy==='weekday'?'平日':'通常')+')</div><div class="hi-stats"><div class="hi-stat"><span>ﾋﾟﾝﾎﾟﾝ</span><strong>'+r.pp+'</strong></div><div class="hi-stat"><span>対応</span><strong>'+r.ta+'</strong></div><div class="hi-stat"><span>アプ</span><strong>'+r.pu+'</strong></div><div class="hi-stat"><span>アポ</span><strong>'+r.ao+'</strong></div></div><div class="hi-btns"><button class="btn btn-s btn-sm" onclick="editApoRepFromHist(\''+r.id+'\')">編集</button></div></div>';}).join('');}
+function renderHist(){
+  var y=parseInt(document.getElementById('hi-y')?.value||new Date().getFullYear());
+  var m=document.getElementById('hi-m')?.value||'all';
+  var sid=document.getElementById('hi-st')?.value||'all';
+  var el=document.getElementById('hist-body');if(!el)return;
+
+  // アポイント履歴
+  var apoReps=(DB.getSync('apo_rep')||[]).filter(function(r){
+    var d=new Date(r.date);
+    if(d.getFullYear()!==y)return false;
+    if(m!=='all'&&d.getMonth()+1!==parseInt(m))return false;
+    if(sid!=='all'&&r.sid!==sid)return false;return true;
+  }).sort(function(a,b){return b.date.localeCompare(a.date);});
+
+  // クロージング履歴
+  var cloReps=(DB.getSync('clo_rep')||[]).filter(function(r){
+    var d=new Date(r.date);
+    if(d.getFullYear()!==y)return false;
+    if(m!=='all'&&d.getMonth()+1!==parseInt(m))return false;
+    if(sid!=='all'&&r.apo_id!==sid&&r.clo_id!==sid)return false;return true;
+  }).sort(function(a,b){return b.date.localeCompare(a.date);});
+
+  var rm={'lost':'失注','contract':'契約','complete':'完工'};
+  var bc={'lost':'badge-ng','contract':'badge-ok','complete':'badge-comp'};
+
+  var apoHtml=apoReps.length?apoReps.map(function(r){
+    var d=new Date(r.date);
+    return '<div class="hi"><div class="hi-date">'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 — <strong>'+r.sname+'</strong> ('+(r.dy==='weekday'?'平日':'通常')+')</div>'
+      +'<div class="hi-stats"><div class="hi-stat"><span>ﾋﾟﾝﾎﾟﾝ</span><strong>'+r.pp+'</strong></div>'
+      +'<div class="hi-stat"><span>対応</span><strong>'+r.ta+'</strong></div>'
+      +'<div class="hi-stat"><span>アプ</span><strong>'+r.pu+'</strong></div>'
+      +'<div class="hi-stat"><span>アポ</span><strong>'+r.ao+'</strong></div></div>'
+      +'<div class="hi-btns"><button class="btn btn-s btn-sm" onclick="editApoRepFromHist(''+r.id+'')">編集</button></div></div>';
+  }).join(''):'<div style="color:var(--white3);font-size:.82rem;padding:10px">アポイント報告はありません</div>';
+
+  var cloHtml=cloReps.length?cloReps.map(function(r){
+    var d=new Date(r.date);
+    return '<div class="hi"><div class="hi-date">'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日</div>'
+      +'<div class="hi-stats"><div class="hi-stat"><span>アポ</span><strong>'+(r.apoN||r.appointerName||'')+'</strong></div>'
+      +'<div class="hi-stat"><span>クロ</span><strong>'+(r.cloN||r.closerName||'')+'</strong></div>'
+      +'<div class="hi-stat"><span>顧客</span><strong>'+(r.cu||r.customer||'')+'様</strong></div>'
+      +(r.sales?'<div class="hi-stat"><span>売上</span><strong>'+r.sales+'万</strong></div>':'')
+      +'<span class="badge '+(bc[r.rs]||'')+'">'+rm[r.rs]+'</span></div>'
+      +'<div class="hi-btns"><button class="btn btn-s btn-sm" onclick="editCloRepAdmin(''+r.id+'')">編集</button></div></div>';
+  }).join(''):'<div style="color:var(--white3);font-size:.82rem;padding:10px">クロージング報告はありません</div>';
+
+  el.innerHTML='<div class="sec-ttl" style="margin-top:0">アポイント報告 ('+apoReps.length+'件)</div>'+apoHtml
+    +'<div class="sec-ttl">クロージング報告 ('+cloReps.length+'件)</div>'+cloHtml;
+}
 function editApoRepFromHist(id){nav('report');setTimeout(function(){editApoRep(id);},120);}
 
 // ═══════════════════════════════════════════
 // STAFF ROSTER
 // ═══════════════════════════════════════════
 var editSfId=null;
+function editCloRepAdmin(id){
+  // 管理者による編集 — タイムラインには通知しない
+  var reps=DB.getSync('clo_rep')||[];
+  var r=reps.find(function(x){return x.id===id;});
+  if(!r)return;
+  editCloId=id;
+  nav('report');
+  setTimeout(function(){
+    var rs=document.getElementById('c-rs');
+    if(rs)rs.value=r.rs;
+    toggleSalesField();
+    var fields={
+      'c-dt':r.date,'c-ap':r.apo_id||r.appointerId,'c-cl':r.clo_id||r.closerId,
+      'c-cm':r.cmt_id||r.commenterId,'c-cu':r.cu||r.customer||'',
+      'c-ac':r.ac||r.apoComment||'','c-cc':r.cc||r.cloComment||'',
+      'c-sales':r.sales||''
+    };
+    Object.keys(fields).forEach(function(k){var el=document.getElementById(k);if(el)el.value=fields[k];});
+    var cnt1=document.getElementById('c-ac-cnt'),cnt2=document.getElementById('c-cc-cnt');
+    if(cnt1)cnt1.textContent=(r.ac||r.apoComment||'').length+'文字';
+    if(cnt2)cnt2.textContent=(r.cc||r.cloComment||'').length+'文字';
+    var ce=document.getElementById('c-ce');if(ce)ce.style.display='inline-flex';
+    var cloTab=document.querySelector('#rep-tabs .admin-only');
+    if(cloTab){cloTab.classList.add('on');switchRepTab('clo',cloTab);}
+  },200);
+}
+
 function buildSfForm(){var teams=DB.getSync('teams')||[];document.getElementById('sf-form').innerHTML='<div class="frow"><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">氏名（漢字）</label><input type="text" id="sf-n" placeholder="山田 太郎"></div><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">氏名（フリガナ）</label><input type="text" id="sf-f" placeholder="ヤマダ タロウ"></div></div><div class="frow"><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">性別</label><select id="sf-g"><option value="male">男性</option><option value="female">女性</option></select></div><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">生年月日</label><input type="date" id="sf-b"></div><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">入社日</label><input type="date" id="sf-j"></div></div><div class="frow"><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">チーム</label><select id="sf-t"><option value="">未所属</option>'+teams.map(function(t){return'<option value="'+t.id+'">'+t.name+'</option>';}).join('')+'</select></div><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">役職</label><select id="sf-pos"><option>アポインター</option><option>自力プレーヤー</option><option>クローザー</option></select></div><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">権限</label><select id="sf-r"><option value="staff">スタッフ</option><option value="admin">管理者</option></select></div></div><div class="frow"><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">メールアドレス</label><input type="text" id="sf-em" placeholder="staff@example.com" autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"></div><div class="fcol"><label style="font-size:.72rem;font-weight:700;color:var(--white3);display:block;margin-bottom:5px">パスワード</label><input type="password" id="sf-pw" placeholder="英数字のみ" autocorrect="off" autocapitalize="none" autocomplete="new-password"></div></div>';}
 function submitStaff(){
   var n=document.getElementById('sf-n')?.value.trim();
@@ -1255,9 +1411,66 @@ function resetSBConfig() {
 
 
 
+// ══════════════════════════════════════════════
+// THEME TOGGLE
+// ══════════════════════════════════════════════
+function applyTheme(theme) {
+  var r = document.documentElement;
+  if (theme === 'light') {
+    r.style.setProperty('--bg','#f0f4ff');
+    r.style.setProperty('--bg2','#ffffff');
+    r.style.setProperty('--bg3','#e8eef8');
+    r.style.setProperty('--bg4','#dde6f5');
+    r.style.setProperty('--white','#0f172a');
+    r.style.setProperty('--white2','#1e293b');
+    r.style.setProperty('--white3','#475569');
+    r.style.setProperty('--border','rgba(59,130,246,0.25)');
+    r.style.setProperty('--border2','rgba(59,130,246,0.12)');
+    r.style.setProperty('--blue2','#2563eb');
+    r.style.setProperty('--blue3','#3b82f6');
+    r.style.setProperty('--blue4','#1d4ed8');
+    r.style.setProperty('--bluedim','rgba(37,99,235,0.1)');
+    r.style.setProperty('--success','#059669');
+    r.style.setProperty('--danger','#dc2626');
+    r.style.setProperty('--coin','#d97706');
+    r.style.setProperty('--link','#7c3aed');
+    document.body.style.background = '#f0f4ff';
+  } else {
+    r.style.setProperty('--bg','#080c14');
+    r.style.setProperty('--bg2','#0c1220');
+    r.style.setProperty('--bg3','#111827');
+    r.style.setProperty('--bg4','#1a2236');
+    r.style.setProperty('--white','#f0f4ff');
+    r.style.setProperty('--white2','#c8d5f0');
+    r.style.setProperty('--white3','#8899bb');
+    r.style.setProperty('--border','rgba(59,130,246,0.18)');
+    r.style.setProperty('--border2','rgba(59,130,246,0.08)');
+    r.style.setProperty('--blue2','#2563eb');
+    r.style.setProperty('--blue3','#3b82f6');
+    r.style.setProperty('--blue4','#60a5fa');
+    r.style.setProperty('--bluedim','rgba(37,99,235,0.15)');
+    r.style.setProperty('--success','#10b981');
+    r.style.setProperty('--danger','#f43f5e');
+    r.style.setProperty('--coin','#fbbf24');
+    r.style.setProperty('--link','#8b5cf6');
+    document.body.style.background = '#080c14';
+  }
+  try { localStorage.setItem('sirl_theme', theme); } catch(e) {}
+}
+
+function toggleTheme() {
+  var cur = localStorage.getItem('sirl_theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+
+
 // ── START ──
 (function() {
   // ① ローカルキャッシュで即座に初期化（ログイン画面はすぐ表示）
+  // Apply saved theme
+  var savedTheme = localStorage.getItem('sirl_theme') || 'dark';
+  applyTheme(savedTheme);
+
   initData(function() {
     document.getElementById('li-email').focus();
   });
