@@ -458,8 +458,8 @@ select option{background:var(--bg3);color:var(--white)}
 // ─────────────────────────────────────────────
 // SIRIUSLINK.LOG — Supabase Cloud Version
 // ─────────────────────────────────────────────
-var SB_URL = localStorage.getItem('sirl_sb_url') || '';
-var SB_KEY = localStorage.getItem('sirl_sb_key') || '';
+var SB_URL = 'https://wmnyihywzdfuxuneplnk.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtbnlpaHl3emRmdXh1bmVwbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NTY4MDQsImV4cCI6MjA5MDUzMjgwNH0.0zqBNOyrVXHXw_uwFdKnOoQH5S6C177gmOFpJRw45pw';
 
 // ── Supabase REST API helpers ──
 function sbRead(table) {
@@ -624,12 +624,6 @@ function doLogin() {
     initApp();
   }
 
-  if (GAS_URL) {
-    // Sync staffs from cloud first, then login
-    DB.syncFromCloud(['staffs'], tryLogin);
-  } else {
-    tryLogin();
-  }
 }
 
 function doLogout() {
@@ -693,14 +687,16 @@ function initApp() {
   });
 
   // Sync all data from cloud if GAS connected
-  if (GAS_URL) {
-    showLoad('データを同期中...');
-    DB.syncFromCloud(ALL_KEYS, function() {
-      hideLoad();
-      nav('timeline');
-    });
-  } else {
-    nav('timeline');
+  // ページ表示は即座に行い、Supabaseからはバックグラウンドで同期
+  nav('timeline');
+  if (SB_URL && SB_KEY) {
+    setTimeout(function() {
+      DB.syncFromCloud(ALL_KEYS, function() {
+        // 同期完了後に現在表示中のページを更新
+        var curPage = document.querySelector('.nav-item.active');
+        if (curPage) { var pg = curPage.getAttribute('data-p'); if (pg) nav(pg); }
+      });
+    }, 300);
   }
 
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
@@ -730,10 +726,12 @@ function nav(p) {
     if (p === 'team-reg') { buildTmMembers(); renderTmList(); }
   }
 
-  if (GAS_URL) {
-    DB.syncFromCloud(ALL_KEYS, doRender);
-  } else {
-    doRender();
+  doRender();
+  // バックグラウンドで同期（ページ表示をブロックしない）
+  if (SB_URL && SB_KEY) {
+    setTimeout(function() {
+      DB.syncFromCloud(ALL_KEYS, doRender);
+    }, 1000);
   }
 }
 
@@ -1246,24 +1244,23 @@ function resetSBConfig() {
 
 // ── START ──
 (function() {
-  var sbUrl = localStorage.getItem('sirl_sb_url');
-  var sbKey = localStorage.getItem('sirl_sb_key');
-  if (sbUrl && sbKey) {
-    SB_URL = sbUrl;
-    SB_KEY = sbKey;
-    initData(function() {
-      document.getElementById('li-email').focus();
-    });
-  } else {
-    // First time: show setup dialog
-    document.addEventListener('DOMContentLoaded', function() {
-      showSBSetup();
-    });
-    // Also init with local data so login works even without Supabase
-    initData(function() {
-      document.getElementById('li-email').focus();
-    });
-  }
+  // Supabaseは設定済み（ハードコード済み）
+  // initDataは同期処理のみ → 即座に完了、ログイン画面がすぐ表示される
+  initData(function() {
+    document.getElementById('li-email').focus();
+  });
+
+  // バックグラウンドでstaffsを先行同期（ログイン画面をブロックしない）
+  setTimeout(function() {
+    sbRead('staffs').then(function(v) {
+      if (v) {
+        try {
+          localStorage.setItem('sirl5_staffs', JSON.stringify(v));
+          CACHE['staffs'] = v;
+        } catch(e) {}
+      }
+    }).catch(function(){});
+  }, 0);
 })();
 
 </script>
