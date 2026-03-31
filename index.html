@@ -612,11 +612,12 @@ select option{background:var(--bg3);color:var(--white)}
       <p>Sales Management System</p>
     </div>
     <div class="login-box">
-      <div class="fld"><label>Email</label><input type="email" id="li-email" placeholder="example@email.com"></div>
-      <div class="fld"><label>Password</label><input type="password" id="li-pw" placeholder="••••••••"></div>
-      <button class="btn-login" onclick="doLogin()">ログイン</button>
-      <p class="login-err" id="li-err">メールアドレスまたはパスワードが違います</p>
-    </div>
+      <form onsubmit="event.preventDefault();doLogin()" novalidate>
+        <div class="fld"><label>Email</label><input type="email" id="li-email" placeholder="example@email.com" autocomplete="email" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="email"></div>
+        <div class="fld"><label>Password</label><input type="password" id="li-pw" placeholder="••••••••" autocomplete="current-password"></div>
+        <button type="submit" class="btn-login">ログイン</button>
+        <p class="login-err" id="li-err">メールアドレスまたはパスワードが違います</p>
+      </form>
     </div>
   </div>
 </div>
@@ -1056,7 +1057,7 @@ function doLogout(){
   document.getElementById('li-email').value='';document.getElementById('li-pw').value='';
   document.getElementById('li-err').style.display='none';
 }
-document.getElementById('li-pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+// Enter key handled by form submit
 
 // ── INIT APP ──
 function initApp(){
