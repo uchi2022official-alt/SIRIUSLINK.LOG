@@ -1042,10 +1042,10 @@ function initData(){
 // ── AUTH ──
 let CU=null;
 function doLogin(){
-  const em=document.getElementById('li-email').value.trim();
-  const pw=document.getElementById('li-pw').value;
+  const em=document.getElementById('li-email').value.trim().toLowerCase();
+  const pw=document.getElementById('li-pw').value.trim();
   const allStaffs=S.g('staffs')||[];
-  const uFound=allStaffs.find(s=>s.email===em&&s.password===pw);
+  const uFound=allStaffs.find(s=>s.email.trim().toLowerCase()===em&&s.password.trim()===pw);
   const errEl=document.getElementById('li-err');
   if(!uFound){errEl.textContent='メールアドレスまたはパスワードが違います';errEl.style.display='block';return}
   if(uFound.active===false){errEl.textContent='このアカウントは無効です。管理者にお問い合わせください。';errEl.style.display='block';return}
@@ -1865,8 +1865,8 @@ function renderSfForm(){
       <div class="fcol"><label>権限</label><select id="sf-r"><option value="staff">スタッフ</option><option value="admin">管理者</option></select></div>
     </div>
     <div class="frow">
-      <div class="fcol"><label>メールアドレス</label><input type="email" id="sf-em" placeholder="staff@example.com"></div>
-      <div class="fcol"><label>パスワード</label><input type="password" id="sf-pw" placeholder="パスワード"></div>
+      <div class="fcol"><label>メールアドレス</label><input type="email" id="sf-em" placeholder="staff@example.com" autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"></div>
+      <div class="fcol"><label>パスワード</label><input type="password" id="sf-pw" placeholder="パスワード" autocomplete="new-password" autocorrect="off" autocapitalize="none"></div>
     </div>`;
 }
 function submitStaff(){
@@ -1876,8 +1876,8 @@ function submitStaff(){
   const obj={name:n,furigana:document.getElementById('sf-f').value,gender:document.getElementById('sf-g').value,
     birthday:document.getElementById('sf-b').value,joinDate:document.getElementById('sf-j').value,
     team:document.getElementById('sf-t').value,position:document.getElementById('sf-pos').value,
-    role:document.getElementById('sf-r').value,email:em,quote:'',photo:'',active:true};
-  const pw=document.getElementById('sf-pw').value;
+    role:document.getElementById('sf-r').value,email:em.trim().toLowerCase(),quote:'',photo:'',active:true};
+  const pw=document.getElementById('sf-pw').value.trim();
   if(editSfId){
     const idx=staffs.findIndex(s=>s.id===editSfId);
     if(idx>=0){staffs[idx]={...staffs[idx],...obj};if(pw)staffs[idx].password=pw}
@@ -1931,8 +1931,8 @@ function editStaff(id){
       <div class="fcol"><label>権限</label><select id="sf-r"><option value="staff"${s.role==='staff'?' selected':''}>スタッフ</option><option value="admin"${s.role==='admin'?' selected':''}>管理者</option></select></div>
     </div>
     <div class="frow">
-      <div class="fcol"><label>メールアドレス</label><input type="email" id="sf-em" value="${s.email}"></div>
-      <div class="fcol"><label>パスワード（変更する場合のみ）</label><input type="password" id="sf-pw" placeholder="変更なしは空欄"></div>
+      <div class="fcol"><label>メールアドレス</label><input type="email" id="sf-em" value="${s.email}" autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"></div>
+      <div class="fcol"><label>パスワード（変更する場合のみ）</label><input type="password" id="sf-pw" placeholder="変更なしは空欄" autocomplete="new-password" autocorrect="off" autocapitalize="none"></div>
     </div>`;
   document.getElementById('sf-ce').style.display='inline-flex';
   document.querySelector('#page-staff-roster .card')?.scrollIntoView({behavior:'smooth'});
