@@ -528,10 +528,29 @@ var ALL_KEYS = ['staffs','teams','apo_rep','clo_rep','tl_items','thanks','link_p
 function initData(cb) {
   var staffs = DB.getSync('staffs');
   if (!staffs || !Array.isArray(staffs) || staffs.length === 0) {
+    // 初回：デモアカウントをセット
     DB.set('staffs', [
       {id:'adm1',name:'管理者',furigana:'カンリシャ',email:'kannrisya@gmail.com',password:'kannrisya',role:'admin',gender:'male',birthday:'1990-01-01',joinDate:'2020-04-01',team:'',position:'クローザー',quote:'',photo:'',active:true},
       {id:'stf1',name:'スタッフ',furigana:'スタッフ',email:'staff@gmail.com',password:'staff',role:'staff',gender:'male',birthday:'1995-06-15',joinDate:'2022-01-01',team:'',position:'アポインター',quote:'',photo:'',active:true}
     ]);
+  } else {
+    // 毎回：デモアカウントのパスワードを正しい値に強制上書き（破損対策）
+    var changed = false;
+    for (var i = 0; i < staffs.length; i++) {
+      if (staffs[i].id === 'adm1') {
+        staffs[i].email = 'kannrisya@gmail.com';
+        staffs[i].password = 'kannrisya';
+        staffs[i].active = true;
+        changed = true;
+      }
+      if (staffs[i].id === 'stf1') {
+        staffs[i].email = 'staff@gmail.com';
+        staffs[i].password = 'staff';
+        staffs[i].active = true;
+        changed = true;
+      }
+    }
+    if (changed) DB.set('staffs', staffs);
   }
   if (!DB.getSync('teams')) DB.set('teams', []);
   if (!DB.getSync('apo_rep')) DB.set('apo_rep', []);
@@ -1466,23 +1485,25 @@ function toggleTheme() {
 
 // ── START ──
 (function() {
-  // ① ローカルキャッシュで即座に初期化（ログイン画面はすぐ表示）
-  // Apply saved theme
+  // テーマ適用
   var savedTheme = localStorage.getItem('sirl_theme') || 'dark';
   applyTheme(savedTheme);
 
+  // ローカルキャッシュで即座に初期化 → ログイン画面すぐ表示
   initData(function() {
-    document.getElementById('li-email').focus();
+    try { document.getElementById('li-email').focus(); } catch(e) {}
   });
 
-  // ② バックグラウンドでstaffsをプリフェッチ
-  //    → ログインボタン押下時にはキャッシュ済みになるので即座にログインできる
-  sbRead('staffs').then(function(v) {
-    if (v) {
-      try { localStorage.setItem('sirl5_staffs', JSON.stringify(v)); } catch(e) {}
-      CACHE['staffs'] = v;
-    }
-  }).catch(function() {});
+  // バックグラウンドでSupabaseからstaffsをプリフェッチ
+  // ログインボタンを押す頃にはキャッシュ済み → 即座にログイン可能
+  try {
+    sbRead('staffs').then(function(v) {
+      if (v && Array.isArray(v)) {
+        CACHE['staffs'] = v;
+        try { localStorage.setItem('sirl5_staffs', JSON.stringify(v)); } catch(e) {}
+      }
+    }).catch(function() {});
+  } catch(e) {}
 })();
 
 </script>
