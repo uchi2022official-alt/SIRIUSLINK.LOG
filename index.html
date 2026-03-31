@@ -613,8 +613,19 @@ select option{background:var(--bg3);color:var(--white)}
     </div>
     <div class="login-box">
       <form onsubmit="event.preventDefault();doLogin()" novalidate>
-        <div class="fld"><label>Email</label><input type="email" id="li-email" placeholder="example@email.com" autocomplete="email" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="email"></div>
-        <div class="fld"><label>Password</label><input type="password" id="li-pw" placeholder="••••••••" autocomplete="current-password"></div>
+        <div class="fld">
+          <label>メールアドレス（ID）</label>
+          <input type="text" id="li-email" placeholder="example@email.com"
+            autocomplete="username" autocorrect="off" autocapitalize="none"
+            autocomplete="off" spellcheck="false" inputmode="email"
+            oninput="this.value=this.value.replace(/\s/g,'').toLowerCase()">
+        </div>
+        <div class="fld">
+          <label>パスワード（英数字小文字）</label>
+          <input type="password" id="li-pw" placeholder="••••••••"
+            autocomplete="current-password" autocorrect="off" autocapitalize="none"
+            oninput="this.value=this.value.replace(/\s/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')">
+        </div>
         <button type="submit" class="btn-login">ログイン</button>
         <p class="login-err" id="li-err">メールアドレスまたはパスワードが違います</p>
       </form>
@@ -1041,12 +1052,17 @@ function initData(){
 
 // ── AUTH ──
 let CU=null;
+// ── AUTH HELPERS ──
+function normEM(v){return(v||'').replace(/\s/g,'').toLowerCase();}
+function normPW(v){return(v||'').replace(/\s/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+
 function doLogin(){
-  const em=document.getElementById('li-email').value.trim().toLowerCase();
-  const pw=document.getElementById('li-pw').value.trim();
-  const allStaffs=S.g('staffs')||[];
-  const uFound=allStaffs.find(s=>s.email.trim().toLowerCase()===em&&s.password.trim()===pw);
+  const em=normEM(document.getElementById('li-email').value);
+  const pw=normPW(document.getElementById('li-pw').value);
   const errEl=document.getElementById('li-err');
+  if(!em||!pw){errEl.textContent='IDとパスワードを入力してください';errEl.style.display='block';return}
+  const allStaffs=S.g('staffs')||[];
+  const uFound=allStaffs.find(s=>normEM(s.email)===em&&normPW(s.password)===pw);
   if(!uFound){errEl.textContent='メールアドレスまたはパスワードが違います';errEl.style.display='block';return}
   if(uFound.active===false){errEl.textContent='このアカウントは無効です。管理者にお問い合わせください。';errEl.style.display='block';return}
   CU=uFound;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';initApp();
@@ -1865,8 +1881,12 @@ function renderSfForm(){
       <div class="fcol"><label>権限</label><select id="sf-r"><option value="staff">スタッフ</option><option value="admin">管理者</option></select></div>
     </div>
     <div class="frow">
-      <div class="fcol"><label>メールアドレス</label><input type="email" id="sf-em" placeholder="staff@example.com" autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"></div>
-      <div class="fcol"><label>パスワード</label><input type="password" id="sf-pw" placeholder="パスワード" autocomplete="new-password" autocorrect="off" autocapitalize="none"></div>
+      <div class="fcol"><label>メールアドレス</label><input type="text" id="sf-em" placeholder="staff@example.com"
+              autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"
+              oninput="this.value=this.value.replace(/\\s/g,'').toLowerCase()"></div>
+      <div class="fcol"><label>パスワード</label><input type="password" id="sf-pw" placeholder="英数字小文字のみ"
+              autocomplete="new-password" autocorrect="off" autocapitalize="none"
+              oninput="this.value=this.value.replace(/\\s/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')"></div>
     </div>`;
 }
 function submitStaff(){
@@ -1876,8 +1896,8 @@ function submitStaff(){
   const obj={name:n,furigana:document.getElementById('sf-f').value,gender:document.getElementById('sf-g').value,
     birthday:document.getElementById('sf-b').value,joinDate:document.getElementById('sf-j').value,
     team:document.getElementById('sf-t').value,position:document.getElementById('sf-pos').value,
-    role:document.getElementById('sf-r').value,email:em.trim().toLowerCase(),quote:'',photo:'',active:true};
-  const pw=document.getElementById('sf-pw').value.trim();
+    role:document.getElementById('sf-r').value,email:normEM(em),quote:'',photo:'',active:true};
+  const pw=normPW(document.getElementById('sf-pw').value);
   if(editSfId){
     const idx=staffs.findIndex(s=>s.id===editSfId);
     if(idx>=0){staffs[idx]={...staffs[idx],...obj};if(pw)staffs[idx].password=pw}
@@ -1931,8 +1951,12 @@ function editStaff(id){
       <div class="fcol"><label>権限</label><select id="sf-r"><option value="staff"${s.role==='staff'?' selected':''}>スタッフ</option><option value="admin"${s.role==='admin'?' selected':''}>管理者</option></select></div>
     </div>
     <div class="frow">
-      <div class="fcol"><label>メールアドレス</label><input type="email" id="sf-em" value="${s.email}" autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"></div>
-      <div class="fcol"><label>パスワード（変更する場合のみ）</label><input type="password" id="sf-pw" placeholder="変更なしは空欄" autocomplete="new-password" autocorrect="off" autocapitalize="none"></div>
+      <div class="fcol"><label>メールアドレス</label><input type="text" id="sf-em" value="${s.email}"
+              autocorrect="off" autocapitalize="none" autocomplete="off" inputmode="email"
+              oninput="this.value=this.value.replace(/\\s/g,'').toLowerCase()"></div>
+      <div class="fcol"><label>パスワード（変更する場合のみ）</label><input type="password" id="sf-pw" placeholder="変更する場合のみ（英数字小文字）"
+              autocomplete="new-password" autocorrect="off" autocapitalize="none"
+              oninput="this.value=this.value.replace(/\\s/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')"></div>
     </div>`;
   document.getElementById('sf-ce').style.display='inline-flex';
   document.querySelector('#page-staff-roster .card')?.scrollIntoView({behavior:'smooth'});
